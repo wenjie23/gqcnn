@@ -23,7 +23,7 @@ MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 Class for analyzing a GQCNN model for grasp quality prediction
 Author: Jeff Mahler
 """
-import cPickle as pkl
+import pickle as pkl
 import copy
 import json
 import logging

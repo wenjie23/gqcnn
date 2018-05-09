@@ -37,8 +37,8 @@ import time
 
 from autolab_core import RigidTransform, YamlConfig
 from perception import BinaryImage, CameraIntrinsics, ColorImage, DepthImage, RgbdImage
-from visualization import Visualizer2D as vis
 
+from gqcnn import Visualizer as vis
 from gqcnn import CrossEntropyRobustGraspingPolicy, RgbdImageState
 
 if __name__ == '__main__':
@@ -66,7 +66,7 @@ if __name__ == '__main__':
     if camera_intr_filename is None:
         camera_intr_filename = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                             '..',
-                                            'data/calib/primesense.intr')    
+											'data/calib/primesense_overhead/primesense_overhead.intr')    
     if config_filename is None:
         config_filename = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                        '..',
@@ -113,6 +113,6 @@ if __name__ == '__main__':
     if policy_config['vis']['final_grasp']:
         vis.figure(size=(10,10))
         vis.imshow(rgbd_im.depth, vmin=0.6, vmax=0.9)
-        vis.grasp(action.grasp, scale=2.5, show_center=False, show_axis=True)
+        vis.grasp(action.grasp, scale=2.5, show_center=True, show_axis=True)
         vis.title('Planned grasp on depth (Q=%.3f)' %(action.q_value))
         vis.show()

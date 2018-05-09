@@ -25,7 +25,7 @@ Author: Jeff Mahler
 """
 from abc import ABCMeta, abstractmethod
 
-import cPickle as pkl
+import pickle as pkl
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -38,7 +38,7 @@ from sklearn.mixture import GaussianMixture
 import autolab_core.utils as utils
 from autolab_core import Point
 from perception import BinaryImage, ColorImage, DepthImage, RgbdImage, SegmentationImage, CameraIntrinsics
-from visualization import Visualizer2D as vis
+from gqcnn import Visualizer as vis
 
 from . import Grasp2D, SuctionPoint2D, ImageGraspSamplerFactory, GQCNN, GraspQualityFunctionFactory, GQCnnQualityFunction
 from .utils import GripperMode, NoValidGraspsException
@@ -366,7 +366,7 @@ class RobustGraspingPolicy(GraspingPolicy):
         """
         # sort grasps
         num_grasps = len(grasps)
-        grasps_and_predictions = zip(np.arange(num_grasps), q_value)
+        grasps_and_predictions = list(zip(np.arange(num_grasps), q_value))
         grasps_and_predictions.sort(key = lambda x : x[1], reverse=True)
 
         # return top grasps
@@ -573,7 +573,7 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
         num_grasps = len(grasps)
         if num_grasps == 0:
             raise NoValidGraspsException('Zero grasps')
-        grasps_and_predictions = zip(np.arange(num_grasps), q_values)
+        grasps_and_predictions = list(zip(np.arange(num_grasps), q_values))
         grasps_and_predictions.sort(key = lambda x : x[1], reverse=True)
 
         # return top grasps
@@ -664,7 +664,7 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
 
             # sort grasps
             resample_start = time()
-            q_values_and_indices = zip(q_values, np.arange(num_grasps))
+            q_values_and_indices = list(zip(q_values, np.arange(num_grasps)))
             q_values_and_indices.sort(key = lambda x : x[0], reverse=True)
 
             if self.config['vis']['grasp_candidates']:

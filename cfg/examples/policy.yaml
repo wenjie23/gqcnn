@@ -48,7 +48,7 @@ policy:
   # metrics
   metric:
     type: gqcnn
-    gqcnn_model: /path/to/your/GQ-Image-Wise
+    gqcnn_model: models/GQCNN-2.0
     
     crop_height: 96
     crop_width: 96

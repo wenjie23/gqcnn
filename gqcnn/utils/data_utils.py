@@ -25,6 +25,7 @@ Author: Lucas Manuelli
 """
 
 import os
+import functools
 
 from .enums import GripperMode
 
@@ -43,7 +44,7 @@ def set_cuda_visible_devices(gpu_list):
     for gpu in gpu_list:
         cuda_visible_devices += str(gpu) + ","
 
-    print "setting CUDA_VISIBLE_DEVICES = ", cuda_visible_devices
+    print ("setting CUDA_VISIBLE_DEVICES = ", cuda_visible_devices)
     os.environ["CUDA_VISIBLE_DEVICES"] = cuda_visible_devices
 
 def pose_dim(gripper_mode):
@@ -115,5 +116,5 @@ def reduce_shape(shape):
     """ Get shape of a layer for flattening """
     shape = [x.value for x in shape[1:]]
     f = lambda x, y: 1 if y is None else x * y
-    return reduce(f, shape, 1)
+    return functools.reduce(f, shape, 1)
     

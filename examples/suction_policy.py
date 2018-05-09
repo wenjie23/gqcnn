@@ -126,7 +126,7 @@ from autolab_core import RigidTransform, YamlConfig
 from perception import RgbdImage, RgbdSensorFactory, PointCloudBoxDetector
 
 from gqcnn import RobustGraspingPolicy, CrossEntropyRobustGraspingPolicy, RgbdImageState
-from gqcnn import Visualizer as vis
+from visualization import Visualizer2D as vis
 
 if __name__ == '__main__':
     # set up logger
