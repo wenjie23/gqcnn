@@ -112,7 +112,7 @@ if __name__ == '__main__':
     # vis final grasp
     if policy_config['vis']['final_grasp']:
         vis.figure(size=(10,10))
-        vis.imshow(rgbd_im.depth, vmin=0.6, vmax=0.9)
+        vis.imshow(rgbd_im.depth, vmin=0.6, vmax=1.8)
         vis.grasp(action.grasp, scale=2.5, show_center=True, show_axis=True)
         vis.title('Planned grasp on depth (Q=%.3f)' %(action.q_value))
         vis.show()

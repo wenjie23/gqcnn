@@ -21,40 +21,37 @@ policy:
   gmm_component_frac: 0.4
   gmm_reg_covar: 0.01
 
-  # gqcnn params
-  gqcnn_model: /mnt/hdd/dex-net/data/models/grasp_quality/GQ-Image-Wise
-
   # general params
   deterministic: 1
-  gripper_width: 0.05
-  crop_height: 96
-  crop_width: 96
+  max_approach_angle: 80
+
+  # metric params
+  metric:
+    type: gqcnn
+    gqcnn_model: /home/wenjie/catkin_ws/src/gqcnn/models/GQCNN-3.0
+
+    crop_height: 96
+    crop_width: 96
 
   # sampling params
   sampling:
-
     # type
-    type: antipodal_depth
+    type: suction
 
-    # antipodality
-    friction_coef: 0.8
-    depth_grad_thresh: 0.0025
-    depth_grad_gaussian_sigma: 1.0
-    downsample_rate: 4
-    max_rejection_samples: 2500
-
-    # distance
-    max_dist_from_center: 10000000
-    min_dist_from_boundary: 40
-    min_grasp_dist: 2.5
+    # params
+    max_suction_dir_optical_axis_angle: 30
+    delta_theta: 1
+    delta_phi: 1
+    mean_depth: 0.0025
+    sigma_depth: 0.000001
+    min_suction_dist: 1.0
     angle_dist_weight: 5.0
+    depth_gaussian_sigma: 1.0
 
-    # depth sampling
-    depth_samples_per_grasp: 1
-    depth_sample_win_height: 1
-    depth_sample_win_width: 1
-    min_depth_offset: 0.015
-    max_depth_offset: 0.0
+    max_dist_from_center: 10000000000
+    max_num_samples: 10000
+
+    num_grasp_samples: 500
 
   # visualization
   vis:
@@ -64,7 +61,7 @@ policy:
     elite_grasps: 0
     grasp_ranking: 0
     grasp_plan: 0
-    final_grasp: 0
+    final_grasp: 1
 
     k: 25
 

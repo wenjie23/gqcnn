@@ -30,7 +30,7 @@ from .policy import Policy, GraspingPolicy, UniformRandomGraspingPolicy, RobustG
 from .optimizer import GQCNNOptimizer
 from .analyzer import GQCNNAnalyzer
 
-from .utils import NoValidGraspsException
+from .utils import NoValidGraspsException,NoAntipodalPairsFoundException 
 
 __all__ = ['GQCNN', 
            'GQCNNOptimizer',

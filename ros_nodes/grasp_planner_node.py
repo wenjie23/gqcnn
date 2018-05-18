@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Copyright ©2017. The Regents of the University of California (Regents). All Rights Reserved.
@@ -19,8 +20,8 @@ PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
 HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
 MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 """
-#!/usr/bin/env python
-""" 
+
+"""
 ROS Server for planning GQCNN grasps 
 Author: Vishal Satish
 """
