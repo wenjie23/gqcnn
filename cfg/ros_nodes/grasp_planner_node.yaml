@@ -30,8 +30,8 @@ policy:
     type: gqcnn
     gqcnn_model: /home/wenjie/catkin_ws/src/gqcnn/models/GQCNN-3.0
 
-    crop_height: 96
-    crop_width: 96
+    crop_height: 256 #96
+    crop_width: 256 #96
 
   # sampling params
   sampling:

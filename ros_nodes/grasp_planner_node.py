@@ -40,9 +40,10 @@ from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Header
 from gqcnn.srv import GQCNNGraspPlanner
 from gqcnn.msg import GQCNNGrasp
+from sensor_msgs.msg import PointCloud2, PointField
 
 class GraspPlanner(object):
-    def __init__(self, cfg, cv_bridge, grasping_policy, grasp_pose_publisher):
+    def __init__(self, cfg, cv_bridge, grasping_policy, grasp_pose_publisher, point_cloud_publisher):
         """
         Parameters
         ----------
@@ -59,6 +60,7 @@ class GraspPlanner(object):
         self.cv_bridge = cv_bridge
         self.grasping_policy = grasping_policy
         self.grasp_pose_publisher = grasp_pose_publisher
+        self.point_cloud_publisher = point_cloud_publisher
 
     def plan_grasp(self, req):
         """ Grasp planner request handler 
@@ -85,10 +87,12 @@ class GraspPlanner(object):
 
         ### Create wrapped Perception RGB and Depth Images by unpacking the ROS Images using CVBridge ###
         try:
-            color_image = perception.ColorImage(self.cv_bridge.imgmsg_to_cv2(raw_color, "rgb8"), frame=camera_intrinsics.frame)
+            color_image = perception.ColorImage(self.cv_bridge.imgmsg_to_cv2(raw_color), frame=camera_intrinsics.frame)
             depth_image = perception.DepthImage(self.cv_bridge.imgmsg_to_cv2(raw_depth, desired_encoding = "passthrough"), frame=camera_intrinsics.frame)
         except CvBridgeError as cv_bridge_exception:
             rospy.logerr(cv_bridge_exception)
+
+        depth_image = depth_image.inpaint(rescale_factor=0.5)
 
         # visualize
         if self.cfg['vis']['vis_uncropped_color_image']:
@@ -102,10 +106,10 @@ class GraspPlanner(object):
         rgbd_image = perception.RgbdImage.from_color_and_depth(color_image, depth_image)
         
         # calc crop parameters
-        minX = bounding_box.minX
-        minY = bounding_box.minY
-        maxX = bounding_box.maxX
-        maxY = bounding_box.maxY
+        minX = int(bounding_box.minX)
+        minY = int(bounding_box.minY)
+        maxX = int(bounding_box.maxX)
+        maxY = int(bounding_box.maxY)
 
         # contain box to image->don't let it exceed image height/width bounds
         no_pad = False
@@ -147,7 +151,7 @@ class GraspPlanner(object):
   
         # execute policy
         try:
-            return self.execute_policy(image_state, self.grasping_policy, self.grasp_pose_publisher, cropped_camera_intrinsics.frame)
+            return self.execute_policy(image_state, self.grasping_policy, self.grasp_pose_publisher, cropped_camera_intrinsics.frame, self.point_cloud_publisher)
         except NoValidGraspsException:
             rospy.logerr('While executing policy found no valid grasps from sampled antipodal point pairs. Aborting Policy!')
             raise rospy.ServiceException('While executing policy found no valid grasps from sampled antipodal point pairs. Aborting Policy!')
@@ -155,7 +159,34 @@ class GraspPlanner(object):
             rospy.logerr('While executing policy could not sample any antipodal point pairs from input image. Aborting Policy! Please check if there is an object in the workspace or if the output of the object detector is reasonable.')
             raise rospy.ServiceException('While executing policy could not sample any antipodal point pairs from input image. Aborting Policy! Please check if there is an object in the workspace or if the output of the object detector is reasonable.')
 
-    def execute_policy(self, rgbd_image_state, grasping_policy, grasp_pose_publisher, pose_frame):
+    def xyz_array_to_pointcloud2(self, points, stamp=None, frame_id=None):
+        '''
+        Create a sensor_msgs.PointCloud2 from an array
+        of points.
+        '''
+        msg = PointCloud2()
+        if stamp:
+            msg.header.stamp = stamp
+        if frame_id:
+            msg.header.frame_id = frame_id
+        if len(points.shape) == 3:
+            msg.height = points.shape[0]
+            msg.width = points.shape[1]
+        else:
+            msg.height = 1
+            msg.width = len(points)
+        msg.fields = [
+            PointField('x', 0, PointField.FLOAT32, 1),
+            PointField('y', 4, PointField.FLOAT32, 1),
+            PointField('z', 8, PointField.FLOAT32, 1)]
+        msg.is_bigendian = False
+        msg.point_step = 12
+        msg.row_step = 12 * points.shape[0]
+        msg.is_dense = False
+        msg.data = np.asarray(points, np.float32).tostring()
+        return msg
+
+    def execute_policy(self, rgbd_image_state, grasping_policy, grasp_pose_publisher, pose_frame, point_cloud_publisher):
         """ Executes a grasping policy on an RgbdImageState
         
         Parameters
@@ -173,6 +204,24 @@ class GraspPlanner(object):
         rospy.loginfo('Planning Grasp')
         grasp_planning_start_time = time.time()
         grasp = grasping_policy(rgbd_image_state)
+
+        # deproject point cloud
+        rgbd_im = rgbd_image_state.rgbd_im
+        depth_im = rgbd_im.depth
+        camera_intr = rgbd_image_state.camera_intr
+        segmask = rgbd_image_state.segmask
+        point_cloud_im = camera_intr.deproject_to_image(depth_im)
+        print (point_cloud_im.data.shape)
+        print(type(point_cloud_im.data))
+
+        # create point cloud msg
+        cloud_msg=self.xyz_array_to_pointcloud2(point_cloud_im.data)
+        header=Header()
+        header.stamp = rospy.Time.now()
+        header.frame_id = pose_frame
+        cloud_msg.header=header
+        point_cloud_publisher.publish(cloud_msg)
+
   
         # create GQCNNGrasp return msg and populate it
         gqcnn_grasp = GQCNNGrasp()
@@ -208,12 +257,15 @@ if __name__ == '__main__':
     # create publisher to publish pose only of final grasp
     grasp_pose_publisher = rospy.Publisher('/gqcnn_grasp/pose', PoseStamped, queue_size=10)
 
+    # create publisher to publish deprojected pointcloud
+    point_cloud_publisher = rospy.Publisher('/gqcnn_grasp/pointCloud',PointCloud2,queue_size=10)
+
     # create a policy 
     rospy.loginfo('Creating Grasp Policy')
     grasping_policy = CrossEntropyRobustGraspingPolicy(policy_cfg)
 
     # create a grasp planner object
-    grasp_planner = GraspPlanner(cfg, cv_bridge, grasping_policy, grasp_pose_publisher)
+    grasp_planner = GraspPlanner(cfg, cv_bridge, grasping_policy, grasp_pose_publisher, point_cloud_publisher)
 
     # initialize the service        
     service = rospy.Service('plan_gqcnn_grasp', GQCNNGraspPlanner, grasp_planner.plan_grasp)

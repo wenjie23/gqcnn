@@ -843,6 +843,8 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
 
         # return action
         action = GraspAction(grasp, q_value, image)
+        print ('center x value:',grasp.center.x)
+        print ('center y value:',grasp.center.y)
 
         if self._logging_dir is not None:
             action_dir = os.path.join(policy_dir, 'action')
