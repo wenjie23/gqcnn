@@ -28,6 +28,7 @@ Author: Vishal Satish
 import rospy
 import time
 import perception
+import numpy as np
 
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -211,8 +212,6 @@ class GraspPlanner(object):
         camera_intr = rgbd_image_state.camera_intr
         segmask = rgbd_image_state.segmask
         point_cloud_im = camera_intr.deproject_to_image(depth_im)
-        print (point_cloud_im.data.shape)
-        print(type(point_cloud_im.data))
 
         # create point cloud msg
         cloud_msg=self.xyz_array_to_pointcloud2(point_cloud_im.data)
