@@ -762,7 +762,6 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
                                                                 axis=grasp_axis)
                     logging.debug('Feature vec took %.5f sec' %(time()-feature_start))
 
-                        
                     bounds_start = time()
                     # check in bounds
                     if state.segmask is None or \
@@ -843,13 +842,20 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
 
         # return action
         action = GraspAction(grasp, q_value, image)
-        print ('center x value:',grasp.center.x)
-        print ('center y value:',grasp.center.y)
+        print ('center x value:', grasp.center.x)
+        print ('center y value:', grasp.center.y)
 
         if self._logging_dir is not None:
             action_dir = os.path.join(policy_dir, 'action')
             action.save(action_dir)
+        print("grasp depth:", grasp.depth)
+        print("approach axis:", action.grasp.axis)
 
+        # check the point cloud noise at the grasp point
+        region=-normal_cloud_im[grasp.center.x-5:grasp.center.x+5,grasp.center.y-5:grasp.center.y+5]
+        print(region)
+        print(region.reshape(region.shape[0]*region.shape[1],-1).mean(axis=0))
+        # ##################
         return action
         
 class QFunctionRobustGraspingPolicy(CrossEntropyRobustGraspingPolicy):
