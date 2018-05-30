@@ -359,6 +359,8 @@ class SuctionPoint2D(object):
         # convert to 3D pose
         suction_x_camera = suction_axis_camera
         suction_z_camera = np.array([-suction_x_camera[1], suction_x_camera[0], 0])
+        if(np.array_equal(suction_z_camera,np.array([0,0,0]))):
+            suction_z_camera=np.array([0,1,0])
         suction_z_camera = suction_z_camera / np.linalg.norm(suction_z_camera)
         suction_y_camera = np.cross(suction_z_camera, suction_x_camera)
         suction_rot_camera = np.c_[suction_x_camera, suction_y_camera, suction_z_camera]

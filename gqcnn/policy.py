@@ -840,6 +840,11 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
             image = DepthImage(image_arr[0,...],
                                frame=state.rgbd_im.frame)
 
+        # # check the point cloud noise around grasp position
+        # region=-normal_cloud_im[grasp.center.x-5:grasp.center.x+5,grasp.center.y-5:grasp.center.y+5]
+        # print(region)
+        # print(region.reshape(region.shape[0]*region.shape[1],-1).mean(axis=0))
+
         # return action
         action = GraspAction(grasp, q_value, image)
         print ('center x value:', grasp.center.x)
@@ -851,12 +856,6 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
         print("grasp depth:", grasp.depth)
         print("approach axis:", action.grasp.axis)
 
-        # changed floris
-        ## check the point cloud noise at the grasp point
-        #region=-normal_cloud_im[grasp.center.x-5:grasp.center.x+5,grasp.center.y-5:grasp.center.y+5]
-        #print(region)
-        #print(region.reshape(region.shape[0]*region.shape[1],-1).mean(axis=0))
-        ## ##################
         return action
         
 class QFunctionRobustGraspingPolicy(CrossEntropyRobustGraspingPolicy):
