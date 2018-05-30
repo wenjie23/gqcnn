@@ -76,6 +76,7 @@ class GraspPlanner(object):
         # get the raw depth and color images as ROS Image objects
         raw_color = req.color_image
         raw_depth = req.depth_image
+        raw_mask  = req.mask_image
 
         # get the raw camera info as ROS CameraInfo object
         raw_camera_info = req.camera_info
@@ -90,10 +91,11 @@ class GraspPlanner(object):
         try:
             color_image = perception.ColorImage(self.cv_bridge.imgmsg_to_cv2(raw_color), frame=camera_intrinsics.frame)
             depth_image = perception.DepthImage(self.cv_bridge.imgmsg_to_cv2(raw_depth, desired_encoding = "passthrough"), frame=camera_intrinsics.frame)
+            mask_image  = perception.BinaryImage(self.cv_bridge.imgmsg_to_cv2(raw_mask ), frame=camera_intrinsics.frame)
         except CvBridgeError as cv_bridge_exception:
             rospy.logerr(cv_bridge_exception)
 
-        depth_image = depth_image.inpaint(rescale_factor=0.5)
+        depth_image = depth_image.inpaint(rescale_factor=1)
 
         # visualize
         if self.cfg['vis']['vis_uncropped_color_image']:
@@ -148,7 +150,7 @@ class GraspPlanner(object):
             vis.show()
 
         # create an RGBDImageState with the cropped RGBDImage and CameraIntrinsics
-        image_state = RgbdImageState(cropped_rgbd_image, cropped_camera_intrinsics)
+        image_state = RgbdImageState(cropped_rgbd_image, cropped_camera_intrinsics, segmask = mask_image)
   
         # execute policy
         try:

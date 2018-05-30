@@ -1,6 +1,7 @@
 # request params
 sensor_msgs/Image color_image
 sensor_msgs/Image depth_image
+sensor_msgs/Image mask_image
 sensor_msgs/CameraInfo camera_info
 BoundingBox bounding_box
 ---
