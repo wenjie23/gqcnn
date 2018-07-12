@@ -858,7 +858,7 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
             action.save(action_dir)
         print("grasp depth:", grasp.depth)
         print("approach axis:", action.grasp.axis)
-
+        print("q value:", q_value)
         return action
         
 class QFunctionRobustGraspingPolicy(CrossEntropyRobustGraspingPolicy):
