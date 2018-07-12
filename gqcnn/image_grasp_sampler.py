@@ -516,6 +516,7 @@ class DepthImageSuctionPointSampler(ImageGraspSampler):
         self._max_phi = np.deg2rad(self._config['delta_phi'])
         self._phi_rv = ss.uniform(loc=self._min_phi,
                                   scale=self._max_phi-self._min_phi)
+        self._kernel_size = self._config['kernel_size']
 
         self._mean_depth = 0.0
         if 'mean_depth' in self._config.keys():
@@ -605,14 +606,16 @@ class DepthImageSuctionPointSampler(ImageGraspSampler):
         # project to get the point cloud
         cloud_start = time()
         point_cloud_im = camera_intr.deproject_to_image(depth_im_mask)
-        normal_cloud_im = point_cloud_im.normal_cloud_im()
+        if self._kernel_size!=0:
+            normal_cloud_im = point_cloud_im.average_normal_cloud_im(self._kernel_size)
+        else:
+            normal_cloud_im = point_cloud_im.normal_cloud_im()
         nonzero_px = depth_im_mask.nonzero_pixels()
         num_nonzero_px = nonzero_px.shape[0]
         if num_nonzero_px == 0:
             return []
         logging.debug('Normal cloud took %.3f sec' %(time() - cloud_start)) 
 
-        
         # randomly sample points and add to image
         sample_start = time()
         suction_points = []

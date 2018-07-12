@@ -633,7 +633,10 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
         camera_intr = state.camera_intr
         segmask = state.segmask
         point_cloud_im = camera_intr.deproject_to_image(depth_im)
-        normal_cloud_im = point_cloud_im.normal_cloud_im()
+        if (self.config['sampling']['kernel_size']!=0):
+            normal_cloud_im = point_cloud_im.average_normal_cloud_im()
+        else:
+            normal_cloud_im = point_cloud_im.normal_cloud_im()
         
         # sample grasps
         grasps = self._grasp_sampler.sample(rgbd_im, camera_intr,
