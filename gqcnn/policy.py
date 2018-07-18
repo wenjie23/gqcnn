@@ -31,6 +31,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import sys
+import cv2
 from time import time
 
 from sklearn.mixture import GaussianMixture
@@ -39,6 +40,7 @@ import autolab_core.utils as utils
 from autolab_core import Point
 from perception import BinaryImage, ColorImage, DepthImage, RgbdImage, SegmentationImage, CameraIntrinsics
 from gqcnn import Visualizer as vis
+from gqcnn import cv2Visualizer as cv2vis
 
 from . import Grasp2D, SuctionPoint2D, ImageGraspSamplerFactory, GQCNN, GraspQualityFunctionFactory, GQCnnQualityFunction
 from .utils import GripperMode, NoValidGraspsException
@@ -634,15 +636,21 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
         segmask = state.segmask
         point_cloud_im = camera_intr.deproject_to_image(depth_im)
         if (self.config['sampling']['kernel_size']!=0):
-            normal_cloud_im = point_cloud_im.average_normal_cloud_im()
+            normal_cloud_im = point_cloud_im.average_normal_cloud_im(self.config['sampling']['kernel_size'])
         else:
             normal_cloud_im = point_cloud_im.normal_cloud_im()
         
+        print("normal min:"+str(np.amin(normal_cloud_im.data)))
+        if self.config['cv2vis']['normal_cloud_im']:
+            normal_cloud_im_tmp = cv2vis.normalize(normal_cloud_im.data,reverse=False)
+            cv2vis.imshow(normal_cloud_im_tmp,'normal_cloud_im')
+        print("normal min:"+str(np.amin(normal_cloud_im.data)))
         # sample grasps
         grasps = self._grasp_sampler.sample(rgbd_im, camera_intr,
                                             self._num_seed_samples,
                                             segmask=segmask,
                                             visualize=self.config['vis']['grasp_sampling'],
+                                            cv2visualize=self.config['cv2vis']['grasp_sampling'],
                                             seed=self._seed)
         num_grasps = len(grasps)
         if num_grasps == 0:
@@ -688,6 +696,15 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
                 if self._logging_dir is not None:
                     filename = os.path.join(self._logging_dir, 'cem_iter_%d.png' %(j))
                 vis.show(filename)
+
+            if self.config['cv2vis']['grasp_candidates']:
+                #display each grasp on the origianl image, colored by predited success
+                norm_q_values = q_values
+                depth_im_tmp = cv2vis.normalize(rgbd_im.depth.data)
+                depth_im_tmp = cv2.cvtColor(depth_im_tmp,cv2.COLOR_GRAY2BGR)
+                for grasp, q in zip(grasps, norm_q_values):
+                    depth_im_tmp = cv2vis.grasp(depth_im_tmp,grasp,q)
+                cv2vis.imshow(depth_im_tmp,'Sampled gras iter'+str(j))
                 
             # fit elite set
             elite_start = time()
@@ -819,6 +836,15 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
                 filename = os.path.join(self._logging_dir, 'final_grasps.png')
             vis.show(filename)
 
+        if self.config['cv2vis']['grasp_candidates']:
+            #display each grasp on the origianl image, colored by predited success
+            norm_q_values = q_values
+            depth_im_tmp = cv2vis.normalize(rgbd_im.depth.data)
+            depth_im_tmp = cv2.cvtColor(depth_im_tmp,cv2.COLOR_GRAY2BGR)
+            for grasp, q in zip(grasps, norm_q_values):
+                depth_im_tmp = cv2vis.grasp(depth_im_tmp,grasp,q)
+            cv2vis.imshow(depth_im_tmp,'Final sampled grasps')
+
         # select grasp
         index = self.select(grasps, q_values)
         grasp = grasps[index]
@@ -835,6 +861,12 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
             if self._logging_dir is not None:
                 filename = os.path.join(self._logging_dir, 'planned_grasp.png')
             vis.show(filename)
+
+        if self.config['cv2vis']['grasp_plan']:
+            depth_im_tmp = cv2vis.normalize(rgbd_im.depth.data)
+            depth_im_tmp = cv2.cvtColor(depth_im_tmp,cv2.COLOR_GRAY2BGR)
+            depth_im_tmp = cv2vis.grasp(depth_im_tmp,grasp,q_value)
+            cv2vis.imshow(depth_im_tmp,'Best Grasp: d='+'%.3f'%(grasp.depth)+'q='+'%.3f'%(q_value))
 
         # form return image
         image = state.rgbd_im.depth

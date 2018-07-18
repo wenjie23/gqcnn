@@ -943,6 +943,17 @@ class GQCnnQualityFunction(GraspQualityFunction):
                 vis2d.title('Image %d: d=%.3f' %(i, depth))
             vis2d.show()
 
+        if params is not None and params['cv2vis']['tf_images']:
+            # read cv2vis params
+            k = params['cv2vis']['k']
+
+            # display grasp trasnformed images
+            from gqcnn import cv2Visualizer as cv2vis
+            for i, image_tf in enumerate(image_tensor[:k,...]):
+                depth = pose_tensor[i][0]
+                image_tf_tmp=cv2vis.normalize(image_tf)
+                cv2vis.imshow(image_tf_tmp,title='Image' + str(i) + ':d=' + "%.3f"%(depth))
+
         # predict grasps
         predict_start = time()
         output_arr = self.gqcnn.predict(image_tensor, pose_tensor)

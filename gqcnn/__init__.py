@@ -23,6 +23,7 @@ from .neural_networks import GQCNN
 
 from .grasp import Grasp2D, SuctionPoint2D
 from .visualizer import Visualizer
+from .cv2visualizer import cv2Visualizer
 from .grasp_quality_function import GraspQualityFunction, SuctionQualityFunction, BestFitPlanaritySuctionQualityFunction, ApproachPlanaritySuctionQualityFunction, GQCnnQualityFunction, GraspQualityFunctionFactory
 from .image_grasp_sampler import ImageGraspSampler, AntipodalDepthImageGraspSampler, DepthImageSuctionPointSampler, ImageGraspSamplerFactory
 from .policy import Policy, GraspingPolicy, UniformRandomGraspingPolicy, RobustGraspingPolicy, CrossEntropyRobustGraspingPolicy, QFunctionRobustGraspingPolicy, EpsilonGreedyQFunctionRobustGraspingPolicy, RgbdImageState, GraspAction, ParallelJawGrasp
@@ -36,6 +37,7 @@ __all__ = ['GQCNN',
            'GQCNNOptimizer',
            'GQCNNAnalyzer',
            'Grasp2D', 'SuctionPoint2D',
+           'cv2Visualizer'
            'GraspAction', 'Policy', 'GraspingPolicy', 'UniformRandomGraspingPolicy', 'RobustGraspingPolicy', 'CrossEntropyRobustGraspingPolicy',
            'RgbdImageState',
            'GraspQualityFunction', 'SuctionQualityFunction', 'BestFitPlanaritySuctionQualityFunction', 'ApproachPlanaritySuctionQualityFunction', 'GQCnnQualityFunction', 'GraspQualityFunctionFactory']

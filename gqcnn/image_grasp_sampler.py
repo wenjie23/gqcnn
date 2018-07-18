@@ -44,9 +44,14 @@ import sklearn.mixture
 from autolab_core import Point, RigidTransform
 from perception import BinaryImage, ColorImage, DepthImage, RgbdImage, GdImage
 from visualization import Visualizer2D as vis
+from gqcnn import cv2Visualizer as cv2vis
 
 from . import Grasp2D, SuctionPoint2D
 from .utils import NoAntipodalPairsFoundException
+
+from matplotlib import cm
+from matplotlib.ticker import LinearLocator, FormatStrFormatter
+from mpl_toolkits.mplot3d import Axes3D
 
 def force_closure(p1, p2, n1, n2, mu):
     """ Computes whether or not the point and normal pairs are in force closure. """
@@ -84,7 +89,7 @@ class ImageGraspSampler(object):
         self._config = config
 
     def sample(self, rgbd_im, camera_intr, num_samples,
-               segmask=None, seed=None, visualize=False):
+               segmask=None, seed=None, visualize=False, cv2visualize=False):
         """
         Samples a set of 2D grasps from a given RGB-D image.
         
@@ -117,7 +122,7 @@ class ImageGraspSampler(object):
         logging.debug('Sampling 2d candidates')
         sampling_start = time()
         grasps = self._sample(rgbd_im, camera_intr, num_samples,
-                              segmask=segmask, visualize=visualize)
+                              segmask=segmask, visualize=visualize, cv2visualize=cv2visualize)
         sampling_stop = time()
         logging.debug('Sampled %d grasps from image' %(len(grasps)))
         logging.debug('Sampling grasps took %.3f sec' %(sampling_stop - sampling_start))
@@ -125,7 +130,7 @@ class ImageGraspSampler(object):
 
     @abstractmethod
     def _sample(self, rgbd_im, camera_intr, num_samples, segmask=None,
-                visualize=False):
+                visualize=False, cv2visualize=False):
         """
         Sample a set of 2D grasp candidates from a depth image.
         Subclasses must override.
@@ -249,7 +254,7 @@ class AntipodalDepthImageGraspSampler(ImageGraspSampler):
         return depth_sample
 
     def _sample(self, image, camera_intr, num_samples, segmask=None,
-                visualize=False):
+                visualize=False, cv2visualize=False):
         """
         Sample a set of 2D grasp candidates from a depth image.
 
@@ -284,7 +289,7 @@ class AntipodalDepthImageGraspSampler(ImageGraspSampler):
         return grasps
 
     def _sample_antipodal_grasps(self, depth_im, camera_intr, num_samples,
-                                 segmask=None, visualize=False):
+                                 segmask=None, visualize=False, cv2visualize=False):
         """
         Sample a set of 2D grasp candidates from a depth image by finding depth
         edges, then uniformly sampling point pairs and keeping only antipodal
@@ -529,7 +534,7 @@ class DepthImageSuctionPointSampler(ImageGraspSampler):
         self._depth_gaussian_sigma = self._config['depth_gaussian_sigma']
  
     def _sample(self, image, camera_intr, num_samples, segmask=None,
-                visualize=False):
+                visualize=False, cv2visualize=False):
         """
         Sample a set of 2D grasp candidates from a depth image.
 
@@ -560,11 +565,11 @@ class DepthImageSuctionPointSampler(ImageGraspSampler):
 
         # sample antipodal pairs in image space
         grasps = self._sample_suction_points(depth_im, camera_intr, num_samples,
-                                             segmask=segmask, visualize=visualize)
+                                             segmask=segmask, visualize=visualize, cv2visualize=cv2visualize)
         return grasps
 
     def _sample_suction_points(self, depth_im, camera_intr, num_samples,
-                               segmask=None, visualize=False):
+                               segmask=None, visualize=False, cv2visualize=False):
         """
         Sample a set of 2D suction point candidates from a depth image by
         choosing points on an object surface uniformly at random
@@ -603,6 +608,22 @@ class DepthImageSuctionPointSampler(ImageGraspSampler):
             vis.imshow(depth_im_mask)
             vis.show()
 
+
+
+        print("debug for test")
+        print (cv2visualize)
+        if cv2visualize:
+            depth_im_tmp=cv2vis.normalize(depth_im.data)
+            cv2vis.imshow(image=depth_im_tmp)
+
+        
+        np.save('/home/wduan/base/src/gqcnn/gqcnn/depth_im.npy',depth_im.data)
+
+        # print(depth_im.data.shape)
+        # cv2.imshow("test",depth_im.data[:,:,2])
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
+
         # project to get the point cloud
         cloud_start = time()
         point_cloud_im = camera_intr.deproject_to_image(depth_im_mask)
@@ -610,6 +631,11 @@ class DepthImageSuctionPointSampler(ImageGraspSampler):
             normal_cloud_im = point_cloud_im.average_normal_cloud_im(self._kernel_size)
         else:
             normal_cloud_im = point_cloud_im.normal_cloud_im()
+        
+        np.save('/home/wduan/base/src/gqcnn/gqcnn/point_cloud_im.npy',point_cloud_im.data)
+        np.save('/home/wduan/base/src/gqcnn/gqcnn/normal_cloud_im.npy',normal_cloud_im.data)
+
+
         nonzero_px = depth_im_mask.nonzero_pixels()
         num_nonzero_px = nonzero_px.shape[0]
         if num_nonzero_px == 0:
@@ -651,6 +677,14 @@ class DepthImageSuctionPointSampler(ImageGraspSampler):
                     vis.imshow(depth_im)
                     vis.scatter(center.x, center.y)
                     vis.show()
+
+                if cv2visualize:
+                    depth_im_tmp = cv2vis.normalize(depth_im.data)
+                    depth_im_tmp = cv2.cvtColor(depth_im_tmp,cv2.COLOR_GRAY2BGR)
+                    cv2.circle(depth_im_tmp,(int(center.x),int(center.y)),5,(0,0,255))
+                    cv2.imshow("Sampled Grasps",depth_im_tmp)
+                    cv2.waitKey(0)
+                    cv2.destroyAllWindows()
 
                 suction_points.append(candidate)
         logging.debug('Loop took %.3f sec' %(time() - sample_start))

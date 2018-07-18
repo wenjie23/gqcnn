@@ -246,7 +246,7 @@ class GraspPlanner(object):
 if __name__ == '__main__':
     
     # initialize the ROS node
-    rospy.init_node('Grasp_Sampler_Server')
+    rospy.init_node('Grasp_Sampler_Server',disable_signals=True)
 
     # initialize cv_bridge
     cv_bridge = CvBridge()

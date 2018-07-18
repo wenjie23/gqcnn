@@ -14,9 +14,9 @@ inpaint_rescale_factor: 0.5 # amount to rescale the images before inpainting (sm
 # policy params
 policy:
   # optimization params
-  num_seed_samples: 500 # number of seed samples
-  num_gmm_samples: 200
-  num_iters: 0
+  num_seed_samples: 200 # number of seed samples
+  num_gmm_samples: 50
+  num_iters: 3
   gmm_refit_p: 0.25
   gmm_component_frac: 0.4
   gmm_reg_covar: 0.01
@@ -28,11 +28,11 @@ policy:
   # metric params
   metric:
     type: gqcnn
-    gqcnn_model: /home/wenjie/catkin_ws/src/gqcnn/models/GQCNN-3.0
+    gqcnn_model: /home/wduan/base/src/gqcnn/models/GQCNN-3.0
 
 
-    crop_height: 192 #96
-    crop_width: 192 #96
+    crop_height: 155 #96
+    crop_width: 155 #96
 
 
   # sampling params
@@ -41,7 +41,7 @@ policy:
     type: suction
 
     # params
-    max_suction_dir_optical_axis_angle: 30
+    max_suction_dir_optical_axis_angle: 80
     delta_theta: 1
     delta_phi: 1
     mean_depth: 0.0025
@@ -54,6 +54,8 @@ policy:
     max_num_samples: 10000
 
     num_grasp_samples: 500
+
+    kernel_size: 0
 
   # visualization
   vis:
@@ -71,3 +73,12 @@ policy:
 
     k: 25
 
+  # OpenCV visualization (it works when python is not initialized in main thread)
+  cv2vis:
+    grasp_sampling : 0
+    normal_cloud_im: 1
+    tf_images: 0
+    grasp_candidates: 0
+    grasp_plan: 1
+
+    k: 4
