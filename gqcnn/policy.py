@@ -32,6 +32,7 @@ import numpy as np
 import os
 import sys
 import cv2
+import rospy
 from time import time
 
 from sklearn.mixture import GaussianMixture
@@ -41,6 +42,7 @@ from autolab_core import Point
 from perception import BinaryImage, ColorImage, DepthImage, RgbdImage, SegmentationImage, CameraIntrinsics
 from gqcnn import Visualizer as vis
 from gqcnn import cv2Visualizer as cv2vis
+from gqcnn import NormalEstimator as netor
 
 from . import Grasp2D, SuctionPoint2D, ImageGraspSamplerFactory, GQCNN, GraspQualityFunctionFactory, GQCnnQualityFunction
 from .utils import GripperMode, NoValidGraspsException
@@ -372,6 +374,7 @@ class RobustGraspingPolicy(GraspingPolicy):
         grasps_and_predictions.sort(key = lambda x : x[1], reverse=True)
 
         # return top grasps
+
         if self._filters is None:
             return grasps_and_predictions[0][0]
         
@@ -565,6 +568,17 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
             self._logging_dir = self.config['logging_dir']
             if not os.path.exists(self._logging_dir):
                 os.mkdir(self._logging_dir)
+
+        # perfrom random grasp
+        self._random_grasp = 0
+        if 'random_grasp' in self.config.keys():
+            self._random_grasp = self.config['random_grasp']
+            if self._random_grasp:
+                self._num_iters = 0
+
+        self._random_threshold = 0
+        if 'random_threshold' in self.config.keys():
+            self._random_threshold = self.config['random_threshold']
             
     def select(self, grasps, q_values):
         """ Selects the grasp with the highest probability of success.
@@ -576,7 +590,18 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
         if num_grasps == 0:
             raise NoValidGraspsException('Zero grasps')
         grasps_and_predictions = list(zip(np.arange(num_grasps), q_values))
+        # return random grasps
+        if self._random_grasp:
+            print("Returning random grasp")
+            while True:
+                i = int(np.random.rand()*num_grasps)
+                print("~~~~~~~~~~~~~~~~~~~"+str(i))
+                index = grasps_and_predictions[i][0]
+                if q_values[index] > self._random_threshold:
+                    break
+            return index
         grasps_and_predictions.sort(key = lambda x : x[1], reverse=True)
+
 
         # return top grasps
         if self._filters is None:
@@ -632,19 +657,18 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
         seed_set_start = time()
         rgbd_im = state.rgbd_im
         depth_im = rgbd_im.depth
+        np.save('/home/wduan/base/src/gqcnn/gqcnn/depth_im.npy',depth_im.data)
         camera_intr = state.camera_intr
         segmask = state.segmask
         point_cloud_im = camera_intr.deproject_to_image(depth_im)
-        if (self.config['sampling']['kernel_size']!=0):
-            normal_cloud_im = point_cloud_im.average_normal_cloud_im(self.config['sampling']['kernel_size'])
-        else:
-            normal_cloud_im = point_cloud_im.normal_cloud_im()
-        
-        print("normal min:"+str(np.amin(normal_cloud_im.data)))
+        normal_cloud_im = point_cloud_im.normal_cloud_im()
+        if (self.config['sampling']['smooth_normal']):
+            normal_cloud_im = netor.smooth(normal_cloud_im, self.config['sampling']['smooth_normal'], self.config['sampling']['kernel_size'])
+
         if self.config['cv2vis']['normal_cloud_im']:
             normal_cloud_im_tmp = cv2vis.normalize(normal_cloud_im.data,reverse=False)
             cv2vis.imshow(normal_cloud_im_tmp,'normal_cloud_im')
-        print("normal min:"+str(np.amin(normal_cloud_im.data)))
+
         # sample grasps
         grasps = self._grasp_sampler.sample(rgbd_im, camera_intr,
                                             self._num_seed_samples,
@@ -817,6 +841,25 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
         q_values = self._grasp_quality_fn(state, grasps, params=self._config)
         logging.info('Final prediction took %.3f sec' %(time()-predict_start))
 
+        showHist = False
+        if showHist:
+            bins = np.arange(1001).reshape(1001,1)
+            h = np.zeros((300,1001,3))
+            q1000 = np.array(q_values)*1000
+            hist = np.bincount (q1000.astype(int))
+            realhist = np.zeros(1001,)
+            realhist[0:len(hist)] = hist
+            pts = np.int32(np.column_stack((bins,realhist)))
+            cv2.polylines(h,[pts],False,(255,255,255))
+            cv2.polylines(h,[np.array([[50,50],[50,51]])],False,(0,255,255))
+            cv2.polylines(h,[np.array([[100,50],[100,51]])],False,(0,255,255))
+            cv2.polylines(h,[np.array([[150,50],[150,51]])],False,(0,255,255))
+            cv2.polylines(h,[np.array([[30,50],[30,51]])],False,(0,255,255))
+            y = np.flipud(h)
+            cv2.imshow("test",y)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+
         if self.config['vis']['grasp_candidates']:
             # display each grasp on the original image, colored by predicted success
             norm_q_values = q_values #(q_values - np.min(q_values)) / (np.max(q_values) - np.min(q_values))
@@ -861,12 +904,14 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
             if self._logging_dir is not None:
                 filename = os.path.join(self._logging_dir, 'planned_grasp.png')
             vis.show(filename)
-
+        
         if self.config['cv2vis']['grasp_plan']:
             depth_im_tmp = cv2vis.normalize(rgbd_im.depth.data)
             depth_im_tmp = cv2.cvtColor(depth_im_tmp,cv2.COLOR_GRAY2BGR)
             depth_im_tmp = cv2vis.grasp(depth_im_tmp,grasp,q_value)
+            print('trying to display the image')
             cv2vis.imshow(depth_im_tmp,'Best Grasp: d='+'%.3f'%(grasp.depth)+'q='+'%.3f'%(q_value))
+            print("displayed?!")
 
         # form return image
         image = state.rgbd_im.depth
@@ -874,23 +919,19 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
             image_arr, _ = self._grasp_quality_fn.grasps_to_tensors([grasp], state)
             image = DepthImage(image_arr[0,...],
                                frame=state.rgbd_im.frame)
-
-        # # check the point cloud noise around grasp position
-        # region=-normal_cloud_im[grasp.center.x-5:grasp.center.x+5,grasp.center.y-5:grasp.center.y+5]
-        # print(region)
-        # print(region.reshape(region.shape[0]*region.shape[1],-1).mean(axis=0))
+        
+        # modify the grasp axis to PCA of point cloud at the grasp position
+        if self.config['sampling']['PCA_normal']:
+            start=time()
+            grasp = netor.PCA_grasp(point_cloud_im,grasp,self.config['sampling']['radius'])
+            rospy.loginfo("PCA takes"+ str(time()-start) + "s")
 
         # return action
         action = GraspAction(grasp, q_value, image)
-        print ('center x value:', grasp.center.x)
-        print ('center y value:', grasp.center.y)
-
         if self._logging_dir is not None:
             action_dir = os.path.join(policy_dir, 'action')
             action.save(action_dir)
-        print("grasp depth:", grasp.depth)
-        print("approach axis:", action.grasp.axis)
-        print("q value:", q_value)
+        print('\033[92m'+"q value: %.3f" % q_value+'\033[0m')
         return action
         
 class QFunctionRobustGraspingPolicy(CrossEntropyRobustGraspingPolicy):
@@ -1046,7 +1087,7 @@ class EpsilonGreedyQFunctionRobustGraspingPolicy(QFunctionRobustGraspingPolicy):
         
         num_grasps = len(grasps)
         if num_grasps == 0:
-            logging.warning('No valid grasps could be found')
+            aogging.warning('No valid grasps could be found')
             raise NoValidGraspsException()
 
         # choose a grasp uniformly at random
