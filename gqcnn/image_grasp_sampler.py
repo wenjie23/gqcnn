@@ -45,6 +45,7 @@ from autolab_core import Point, RigidTransform
 from perception import BinaryImage, ColorImage, DepthImage, RgbdImage, GdImage
 from visualization import Visualizer2D as vis
 from gqcnn import cv2Visualizer as cv2vis
+from gqcnn import NormalEstimator as netor
 
 from . import Grasp2D, SuctionPoint2D
 from .utils import NoAntipodalPairsFoundException
@@ -521,6 +522,7 @@ class DepthImageSuctionPointSampler(ImageGraspSampler):
         self._max_phi = np.deg2rad(self._config['delta_phi'])
         self._phi_rv = ss.uniform(loc=self._min_phi,
                                   scale=self._max_phi-self._min_phi)
+        self._smooth_normal = self._config['smooth_normal']
         self._kernel_size = self._config['kernel_size']
 
         self._mean_depth = 0.0
@@ -608,33 +610,19 @@ class DepthImageSuctionPointSampler(ImageGraspSampler):
             vis.imshow(depth_im_mask)
             vis.show()
 
-
-
-        print("debug for test")
-        print (cv2visualize)
         if cv2visualize:
             depth_im_tmp=cv2vis.normalize(depth_im.data)
             cv2vis.imshow(image=depth_im_tmp)
 
         
-        np.save('/home/wduan/base/src/gqcnn/gqcnn/depth_im.npy',depth_im.data)
-
-        # print(depth_im.data.shape)
-        # cv2.imshow("test",depth_im.data[:,:,2])
-        # cv2.waitKey(0)
-        # cv2.destroyAllWindows()
 
         # project to get the point cloud
         cloud_start = time()
         point_cloud_im = camera_intr.deproject_to_image(depth_im_mask)
-        if self._kernel_size!=0:
-            normal_cloud_im = point_cloud_im.average_normal_cloud_im(self._kernel_size)
-        else:
-            normal_cloud_im = point_cloud_im.normal_cloud_im()
-        
-        np.save('/home/wduan/base/src/gqcnn/gqcnn/point_cloud_im.npy',point_cloud_im.data)
-        np.save('/home/wduan/base/src/gqcnn/gqcnn/normal_cloud_im.npy',normal_cloud_im.data)
+        normal_cloud_im = point_cloud_im.normal_cloud_im()
 
+        if self._smooth_normal:
+            normal_cloud_im = netor.smooth(normal_cloud_im, self._smooth_normal, self._kernel_size)
 
         nonzero_px = depth_im_mask.nonzero_pixels()
         num_nonzero_px = nonzero_px.shape[0]
