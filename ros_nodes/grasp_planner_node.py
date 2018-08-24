@@ -29,6 +29,7 @@ import rospy
 import time
 import perception
 import numpy as np
+import cv2
 
 from cv_bridge import CvBridge, CvBridgeError
 
@@ -36,9 +37,12 @@ from autolab_core import YamlConfig
 from gqcnn import CrossEntropyRobustGraspingPolicy, RgbdImageState
 from gqcnn import NoValidGraspsException, NoAntipodalPairsFoundException
 from gqcnn import Visualizer as vis
+from gqcnn import cv2Visualizer as cv2vis
+from gqcnn import DataRecorder
 
 from geometry_msgs.msg import PoseStamped
 from std_msgs.msg import Header
+from std_msgs.msg import String
 from gqcnn.srv import GQCNNGraspPlanner
 from gqcnn.msg import GQCNNGrasp
 from sensor_msgs.msg import PointCloud2, PointField
@@ -83,6 +87,12 @@ class GraspPlanner(object):
         
         # get the bounding box as a custom ROS BoundingBox msg 
         bounding_box = req.bounding_box
+
+        # get the directory to save data
+        save_dir = req.save_directory
+
+        # create data recorder object
+        dataRecorder = DataRecorder(self.cfg['policy'],save_dir)
 
         # wrap the camera info in a perception CameraIntrinsics object
         camera_intrinsics = perception.CameraIntrinsics(raw_camera_info.header.frame_id, raw_camera_info.K[0], raw_camera_info.K[4], raw_camera_info.K[2], raw_camera_info.K[5], raw_camera_info.K[1], raw_camera_info.height, raw_camera_info.width)
@@ -154,7 +164,7 @@ class GraspPlanner(object):
   
         # execute policy
         try:
-            return self.execute_policy(image_state, self.grasping_policy, self.grasp_pose_publisher, cropped_camera_intrinsics.frame, self.point_cloud_publisher)
+            return self.execute_policy(image_state, self.grasping_policy, self.grasp_pose_publisher, cropped_camera_intrinsics.frame, self.point_cloud_publisher, dataRecorder)
         except NoValidGraspsException:
             rospy.logerr('While executing policy found no valid grasps from sampled antipodal point pairs. Aborting Policy!')
             raise rospy.ServiceException('While executing policy found no valid grasps from sampled antipodal point pairs. Aborting Policy!')
@@ -189,7 +199,7 @@ class GraspPlanner(object):
         msg.data = np.asarray(points, np.float32).tostring()
         return msg
 
-    def execute_policy(self, rgbd_image_state, grasping_policy, grasp_pose_publisher, pose_frame, point_cloud_publisher):
+    def execute_policy(self, rgbd_image_state, grasping_policy, grasp_pose_publisher, pose_frame, point_cloud_publisher, dataRecorder):
         """ Executes a grasping policy on an RgbdImageState
         
         Parameters
@@ -202,6 +212,8 @@ class GraspPlanner(object):
             ROS Publisher to publish planned grasp's ROS Pose only for visualization
         pose_frame: :obj:`str`
             frame of reference to publish pose alone in
+        dataRecorder: obj:`DataRecorder`
+            recorder used to save grasping data
         """
         # execute the policy's action
         rospy.loginfo('Planning Grasp')
@@ -222,7 +234,6 @@ class GraspPlanner(object):
         header.frame_id = pose_frame
         cloud_msg.header=header
         point_cloud_publisher.publish(cloud_msg)
-
   
         # create GQCNNGrasp return msg and populate it
         gqcnn_grasp = GQCNNGrasp()
@@ -241,13 +252,19 @@ class GraspPlanner(object):
         # return GQCNNGrasp msg
         rospy.loginfo('Total grasp planning time: ' + str(time.time() - grasp_planning_start_time) + ' secs.')
 
+        # save data
+        dataRecorder.save(depth_im,grasp)
+
+        # publish latest_col_dir
+        dir_pub = rospy.Publisher('latest_col_dir', String, queue_size=10)
+        dir_pub.publish(dataRecorder.save_dir)
+
         return gqcnn_grasp
 
 if __name__ == '__main__':
     
     # initialize the ROS node
     rospy.init_node('Grasp_Sampler_Server',disable_signals=True)
-
     # initialize cv_bridge
     cv_bridge = CvBridge()
 
