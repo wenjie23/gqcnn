@@ -19,25 +19,38 @@ PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
 HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
 MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 """
+from .optimizer_constants import ImageMode, TrainingMode, PreprocMode, InputDataMode, GeneralConstants, ImageFileTemplates
+from .train_stats_logger import TrainStatsLogger
+from .learning_analysis import ClassificationResult, RegressionResult, ConfusionMatrix
+
 from .neural_networks import GQCNN
 
 from .grasp import Grasp2D, SuctionPoint2D
 from .visualizer import Visualizer
 from .cv2visualizer import cv2Visualizer
+from .normal_estimator import NormalEstimator
+from .data_recorder import DataRecorder
 from .grasp_quality_function import GraspQualityFunction, SuctionQualityFunction, BestFitPlanaritySuctionQualityFunction, ApproachPlanaritySuctionQualityFunction, GQCnnQualityFunction, GraspQualityFunctionFactory
 from .image_grasp_sampler import ImageGraspSampler, AntipodalDepthImageGraspSampler, DepthImageSuctionPointSampler, ImageGraspSamplerFactory
 from .policy import Policy, GraspingPolicy, UniformRandomGraspingPolicy, RobustGraspingPolicy, CrossEntropyRobustGraspingPolicy, QFunctionRobustGraspingPolicy, EpsilonGreedyQFunctionRobustGraspingPolicy, RgbdImageState, GraspAction, ParallelJawGrasp
 
 from .optimizer import GQCNNOptimizer
+from .sgd_optimizer import SGDOptimizer
 from .analyzer import GQCNNAnalyzer
 
 from .utils import NoValidGraspsException,NoAntipodalPairsFoundException 
 
 __all__ = ['GQCNN', 
            'GQCNNOptimizer',
+           'SGDOptimizer',
            'GQCNNAnalyzer',
+           'ImageMode', 'TrainingMode', 'PreprocMode', 'InputDataMode',
+           'TrainStatsLogger',
+           'ClassificationResult', 'RegressionResult', 'ConfusionMatrix',
            'Grasp2D', 'SuctionPoint2D',
-           'cv2Visualizer'
+           'cv2Visualizer',
+           'NormalEstimator',
+           'DataRecorder',
            'GraspAction', 'Policy', 'GraspingPolicy', 'UniformRandomGraspingPolicy', 'RobustGraspingPolicy', 'CrossEntropyRobustGraspingPolicy',
            'RgbdImageState',
            'GraspQualityFunction', 'SuctionQualityFunction', 'BestFitPlanaritySuctionQualityFunction', 'ApproachPlanaritySuctionQualityFunction', 'GQCnnQualityFunction', 'GraspQualityFunctionFactory']
