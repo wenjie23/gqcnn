@@ -182,8 +182,8 @@ class SGDOptimizer(object):
         # part 2: regularization
         layer_weights = self.weights.__dict__.values()
         with tf.name_scope('regularization'):
-            regularizers = tf.nn.l2_loss(layer_weights[0])
-            for w in layer_weights[1:]:
+            regularizers = tf.nn.l2_loss(list(layer_weights)[0])
+            for w in list(layer_weights)[1:]:
                 regularizers = regularizers + tf.nn.l2_loss(w)
             loss += self.train_l2_regularizer * regularizers
 
@@ -205,7 +205,7 @@ class SGDOptimizer(object):
 
         # create optimizer
         with tf.name_scope('optimizer'):
-            optimizer = self._create_optimizer(loss, batch, var_list, learning_rate)
+            optimizer = self._create_optimizer(loss, batch, list(var_list), learning_rate)
 
         def handler(signum, frame):
             logging.info('caught CTRL+C, exiting...')
@@ -261,7 +261,7 @@ class SGDOptimizer(object):
             self.train_stats_logger = TrainStatsLogger(self.experiment_dir)
 
             # loop through training steps
-            training_range = xrange(int(self.num_epochs * self.num_train) // self.train_batch_size)
+            training_range = range(int(self.num_epochs * self.num_train) // self.train_batch_size)
             for step in training_range:
                 # check for dead queue
                 self._check_dead_queue()
@@ -395,6 +395,8 @@ class SGDOptimizer(object):
         """
         if input_data_mode == InputDataMode.TF_IMAGE:
             return pose_arr[:,2:3]
+        elif input_data_mode == InputDataMode.TF_IMAGE_SUCTION:
+            return pose_arr[:,2:4]
         elif input_data_mode == InputDataMode.TF_IMAGE_PERSPECTIVE:
             return np.c_[pose_arr[:,2:3], pose_arr[:,4:6]]
         else:
@@ -636,8 +638,8 @@ class SGDOptimizer(object):
                 im_arr = np.load(os.path.join(self.data_dir, im_filename))['arr_0']
                 self.train_index_map[im_filename] = train_indices[(train_indices >= lower) & (train_indices < upper) &  (train_indices - lower < im_arr.shape[0])] - lower
                 self.val_index_map[im_filename] = val_indices[(val_indices >= lower) & (val_indices < upper) & (val_indices - lower < im_arr.shape[0])] - lower
-            pkl.dump(self.train_index_map, open(train_index_map_filename, 'w'))
-            pkl.dump(self.val_index_map, open(val_index_map_filename, 'w'))
+            pkl.dump(self.train_index_map, open(train_index_map_filename, 'wb'))
+            pkl.dump(self.val_index_map, open(val_index_map_filename, 'wb'))
 
     def _compute_indices_object_wise(self):
         """ Compute train and validation indices based on an object-wise split"""
@@ -808,6 +810,8 @@ class SGDOptimizer(object):
         self.input_data_mode = self.cfg['input_data_mode']
         if self.input_data_mode == InputDataMode.TF_IMAGE:
             self.pose_dim = 1 # depth
+        elif self.input_data_mode == InputDataMode.TF_IMAGE_SUCTION:
+            self.pose_dim = 2 # depth, theta
         elif self.input_data_mode == InputDataMode.TF_IMAGE_PERSPECTIVE:
             self.pose_dim = 3 # depth, cx, cy
         elif self.input_data_mode == InputDataMode.RAW_IMAGE:
