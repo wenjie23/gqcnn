@@ -1,15 +1,15 @@
 ### TRAINING CONFIGURATIONS ###
-mode: analysis
+mode: finetuning
 
 # dataset 
-dataset_dir: /path/to/your/dataset
-output_dir: /path/to/output/trained/models
-model_dir: /path/to/your/pretrained/gqcnn/model
+dataset_dir: /home/wduan/data_external/dexnet_09_13_17/tensors
+output_dir: /home/wduan/data_external/test_fintuning
+model_dir: /home/wduan/base/src/gqcnn/models/GQCNN-3.0
 
 # general optimization parameters
 train_batch_size: 64
 val_batch_size: 16
-num_epochs: 2.5     # number of epochs to train for
+num_epochs: 1.0     # number of epochs to train for
 eval_frequency: 1000  # how often to get validation error 
 save_frequency: 1000  # how often to save output
 vis_frequency: 1000
@@ -21,7 +21,7 @@ queue_sleep: 0.01     # how long to sleep between prefetches
 
 data_split_mode: image_wise # how to split up the data into training vs validation: options are image_wise, stable_pose_wise, object_wise
 train_pct: 0.8 # percentage of the data to use for training vs validation
-total_pct: 1.0 # percentage of all the files to use
+total_pct: 0.1 # percentage of all the files to use
 eval_total_train_error: 0
 
 loss: sparse
@@ -44,12 +44,12 @@ reinit_fc5: 0
 image_mode: depth_tf_table
 training_mode: classification
 preproc_mode: none
-input_data_mode: tf_image
+input_data_mode: tf_image_suction
 num_tensor_channels: 1
 
 num_random_files: 100
 
-target_metric_name: robust_ferrari_canny
+target_metric_name: robust_suction_wrench_resistance
 metric_thresh: 0.002
 
 # denoising / synthetic data params
@@ -107,7 +107,7 @@ gqcnn_config:
   im_width: 32
   im_channels: 1
   # needs to match input data mode that was used for training, determines the pose dimensions for the network
-  input_data_mode: tf_image
+  input_data_mode: tf_image_suction
 
   # prediction batch size, in training this will be overriden by the val_batch_size in the SGDOptimizer's config file
   batch_size: 16
