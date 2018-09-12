@@ -104,6 +104,24 @@ class GQCNN(object):
 
         return gqcnn
 
+    def get_tf_graph(self):
+        """ Returns the graph for this tf session 
+        Returns
+        -------
+        :obj:`tf Graph`
+            TensorFlow Graph 
+        """
+        return self._graph
+
+    def get_weights(self):
+        """ Returns the weights for this network 
+        Returns
+        -------
+        :obj:`GQCnnWeights`
+            network weights
+        """
+        return self._weights
+
     @property
     def feature_tensors(self):
         """ Dictionary containing the tensors for intermediate GQ-CNN layers. """
@@ -191,7 +209,7 @@ class GQCNN(object):
     def graph(self):
         return self._graph
 
-    def set_im_mean(self, im_mean):
+    def update_im_mean(self, im_mean):
         """ Updates image mean to be used for normalization when predicting 
         
         Parameters
@@ -212,7 +230,7 @@ class GQCNN(object):
         """
         return self._im_mean
 
-    def set_im_std(self, im_std):
+    def update_im_std(self, im_std):
         """ Updates image standard deviation to be used for normalization when predicting 
         
         Parameters
@@ -233,7 +251,7 @@ class GQCNN(object):
         """
         return self._im_std
 
-    def set_pose_mean(self, pose_mean):
+    def update_pose_mean(self, pose_mean):
         """ Updates pose mean to be used for normalization when predicting 
         
         Parameters
@@ -254,7 +272,7 @@ class GQCNN(object):
         """
         return self._pose_mean
 
-    def set_pose_std(self, pose_std):
+    def update_pose_std(self, pose_std):
         """ Updates pose standard deviation to be used for normalization when predicting 
         
         Parameters
@@ -283,7 +301,7 @@ class GQCNN(object):
         """ Adds sigmoid to output tensor of prediction network """
         self._output_tensor = tf.nn.sigmoid(self._output_tensor)
 
-    def set_batch_size(self, batch_size):
+    def update_batch_size(self, batch_size):
         """ Updates the prediction batch size 
 
         Parameters
