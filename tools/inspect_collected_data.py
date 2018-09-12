@@ -10,6 +10,7 @@ import cv2
 import shutil
 import argparse
 import json
+import pylab
 
 import matplotlib.pyplot as plt
 
@@ -41,12 +42,7 @@ def visualize_grasp (depth_data,grasp_x,grasp_y,grasp_depth,q_value):
     plt.scatter(grasp_x,grasp_y,c=color,marker='.',s=125.0)
     plt.title("The executed grasp: depth:%.3f q:%.3f" % (grasp_depth,q_value))
 
-if __name__=="__main__":
-    # parse args
-    parser = argparse.ArgumentParser(description='Inspect collected data')
-    parser.add_argument('--dir', type=str, default=None, help='the directory which stores the data of one grasp trial. (Example: ~/collection/20180801/20180801113645)')
-    args = parser.parse_args()
-    directory = args.dir
+def inspect_single_data(directory):
     # scan file names in directory
     fileNames = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
     # print founded files 
@@ -61,8 +57,10 @@ if __name__=="__main__":
             img = cv2.imread(os.path.join(directory,fileName))
             plt.imshow(cv2.cvtColor(img,cv2.COLOR_BGR2RGB)),plt.title(fileName)
             plt.show(block=False)
+    for fileName in fileNames:
+        file_root,file_ext = os.path.splitext(fileName)
         # print .json file
-        elif file_ext == ".json":
+        if file_ext == ".json":
             print(fileName+" :")
             with open(os.path.join(directory,fileName)) as jsonFile:
                 if file_root =="calibration":
@@ -103,5 +101,63 @@ if __name__=="__main__":
         shutil.rmtree(directory)
     else:
         print ("Illegal input.")
+
+def inspect_range_data(mul_directory):
+    trial_num = 0
+    success_num = 0
+    q_values = []
+    fail_q_values = []
+    success_q_values = []
+    success_labels = []
+    for directory in mul_directory:
+        for dirs, folders, files in os.walk(directory):
+            for fileName in files:
+                if fileName == 'label.json':
+                    with open(os.path.join(dirs,fileName)) as jsonFile:
+                        label_data = json.load(jsonFile)
+                        trial_num+=1
+                        q_values.append(label_data['q_value'])
+                        success_labels.append(label_data['success'])
+                        if label_data['success']==0:
+                            fail_q_values.append(label_data['q_value'])
+                        else:
+                            success_q_values.append(label_data['q_value'])
+                            success_num +=1
+
+    print('number of trials:',trial_num)
+    print('success number:',success_num)
+    y,binEdges = np.histogram(q_values,bins=100) 
+    bincenters = 0.5*(binEdges[1:]+binEdges[:-1])
+    pylab.plot(bincenters,y,'-',label='tol')
+    pylab.title('q values histogram')
+
+    y,binedges = np.histogram(success_q_values,bins=100) 
+    bincenters = 0.5*(binedges[1:]+binedges[:-1])
+    pylab.plot(bincenters,y,'-g',label='success grasp')
+    pylab.title('success q values histogram')
+
+    y,binEdges = np.histogram(fail_q_values,bins=100) 
+    bincenters = 0.5*(binEdges[1:]+binEdges[:-1])
+    pylab.plot(bincenters,y,'-r', label='failed grasp')
+    pylab.legend(loc='upper right')
+    pylab.xlabel('q values')
+    pylab.ylabel('grasp numbers')
+    pylab.title('Grasp Histogram')
+    pylab.show()
+if __name__=="__main__":
+    # parse args
+    parser = argparse.ArgumentParser(description='Inspect collected data')
+    parser.add_argument('--one', type=str, default=None, help='the directory which stores the data of one grasp trial. (Example: ~/collection/20180801/20180801113645)')
+    parser.add_argument('--mul', '--nargs', nargs='+',help='list of directories you want to inspect. (Example: ~/collection/2018080817 ~/collection/20180818)')
+    args = parser.parse_args()
+    directory = args.one
+    mul_directory = args.mul
+    
+    # inspect a single trial data
+    if directory:
+        inspect_single_data(directory)
+    if mul_directory:
+        inspect_range_data(mul_directory)
+
 
 
