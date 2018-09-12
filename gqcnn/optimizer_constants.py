@@ -65,6 +65,7 @@ class PreprocMode:
 # enum for input data formats
 class InputDataMode:
     TF_IMAGE = 'tf_image'
+    TF_IMAGE_SUCTION = 'tf_image_suction'
     TF_IMAGE_PERSPECTIVE = 'tf_image_with_perspective'
     RAW_IMAGE = 'raw_image'
     RAW_IMAGE_PERSPECTIVE = 'raw_image_with_perspective'
