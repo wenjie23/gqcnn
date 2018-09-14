@@ -39,7 +39,7 @@ class ImageFileTemplates:
     depth_im_tf_table_tensor_template = 'depth_ims_tf_table'
     table_mask_template = 'table_mask'
     hand_poses_template = 'hand_poses'
-    object_labels_template = 'object_labels'
+    object_labels_template = 'obj_labels'
     pose_labels_template = 'pose_labels'
 
 # enum for image modalities
