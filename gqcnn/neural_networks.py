@@ -122,6 +122,42 @@ class GQCNN(object):
         """
         return self._weights
 
+    def get_pose_mean(self):
+        """Returns teh pose mean of this trained model
+        Returns
+        -------
+        :obj:`tensorflow Tensor`
+            pose mean of training data
+        """
+        return self._pose_mean
+    
+    def get_pose_std(self):
+        """Returns the pose standard deviation of this trained model
+        Returns
+        -------
+        :obj:`tensorflow Tensor`
+            pose standard deviation of training data
+        """
+        return self._pose_std
+
+    def get_im_mean(self):
+        """Returns the image mean of this trained model
+        Returns
+        -------
+        :obj: float
+            image mean of training data
+        """
+        return self._im_mean
+
+    def get_im_std(self):
+        """Returns the image standard deviation of this trained model
+        Returns
+        -------
+        :obj: float
+        image standard deviation of training data
+        """
+        return self._im_std
+
     @property
     def feature_tensors(self):
         """ Dictionary containing the tensors for intermediate GQ-CNN layers. """
