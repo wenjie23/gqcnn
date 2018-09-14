@@ -337,6 +337,7 @@ class SGDOptimizer(object):
             self.train_stats_logger.update(train_eval_iter=None, train_loss=None, train_error=None, total_train_error=None, val_eval_iter=step, val_error=val_error, learning_rate=None)
 
             # log & save everything!
+            logging.info('Saving final model to:',self.experiment_dir)
             self.train_stats_logger.log()
             self.saver.save(self.sess, os.path.join(self.experiment_dir, 'model.ckpt'))
 
@@ -486,7 +487,7 @@ class SGDOptimizer(object):
     def _compute_data_metrics(self):
         """ Calculate image mean, image std, pose mean, pose std, normalization params """
 
-        # compute data mean
+        # compute data mean and std
         logging.info('Computing image mean')
         mean_filename = os.path.join(self.experiment_dir, 'mean.npy')
         std_filename = os.path.join(self.experiment_dir, 'std.npy')
@@ -513,7 +514,7 @@ class SGDOptimizer(object):
             self.data_std = np.sqrt(self.data_std / (num_summed * self.im_height * self.im_width))
             np.save(std_filename, self.data_std)
 
-        # compute pose mean
+        # compute pose mean and std
         logging.info('Computing pose mean')
         self.pose_mean_filename = os.path.join(self.experiment_dir, 'pose_mean.npy')
         self.pose_std_filename = os.path.join(self.experiment_dir, 'pose_std.npy')
@@ -568,6 +569,14 @@ class SGDOptimizer(object):
             else:
                 self.gqcnn.update_pose_mean(self.pose_mean[2])
                 self.gqcnn.update_pose_std(self.pose_std[2])
+        elif self.input_data_mode == InputDataMode.TF_IMAGE_SUCTION:
+            # depth, theta
+            if self.pose_mean.shape[0] == 2:
+                self.gqcnn.update_pose_mean = (self.pose_mean)
+                self.gqcnn.update_pose_std = (self.pose_std)
+            else:
+                self.gqcnn.update_pose_mean = (self.pose_mean[2:4])
+                self.gqcnn.update_pose_std = (self.pose_std[2:4])
         elif self.input_data_mode == InputDataMode.TF_IMAGE_PERSPECTIVE:
             # depth, cx, cy
             self.gqcnn.update_pose_mean(np.concatenate([self.pose_mean[2:3], self.pose_mean[4:6]]))
@@ -620,8 +629,8 @@ class SGDOptimizer(object):
             val_index_map_filename = os.path.join(self.experiment_dir, 'val_indices_image_wise.pkl')
 
         if os.path.exists(train_index_map_filename):
-            self.train_index_map = pkl.load(open(train_index_map_filename, 'r'))
-            self.val_index_map = pkl.load(open(val_index_map_filename, 'r'))
+            self.train_index_map = pkl.load(open(train_index_map_filename, 'rb'))
+            self.val_index_map = pkl.load(open(val_index_map_filename, 'rb'))
         else:            
             # get training and validation indices
             all_indices = np.arange(self.num_datapoints)
@@ -873,13 +882,17 @@ class SGDOptimizer(object):
 
             # pack, shuffle and sample
             zipped = zip(self.im_filenames, self.pose_filenames, self.label_filenames, self.obj_id_filenames, self.stable_pose_filenames)
+            zipped = list(zipped)
             random.shuffle(zipped)
             zipped = zipped[:self.debug_num_files]
-
             # unpack
             self.im_filenames, self.pose_filenames, self.label_filenames, self.obj_id_filenames, self.stable_pose_filenames = zip(*zipped)
-            IPython.embed()
-
+            #IPython.embed()
+        self.im_filenames=list(self.im_filenames)
+        self.pose_filenames=list(self.pose_filenames)
+        self.label_filenames=list(self.label_filenames)
+        self.obj_id_filenames=list(self.obj_id_filenames)
+        self.stable_pose_filenames=list(self.stable_pose_filenames)
         self.im_filenames.sort(key = lambda x: int(x[-9:-4]))
         self.pose_filenames.sort(key = lambda x: int(x[-9:-4]))
         self.label_filenames.sort(key = lambda x: int(x[-9:-4]))
@@ -1052,6 +1065,15 @@ class SGDOptimizer(object):
                 if self.pose_dim == 1 and self.train_poses_arr.shape[1] == 6:
                     self.train_poses_arr = self.train_poses_arr[:, :4]
 
+                # expand pose mean and std when the dimensions are not match with trianing data
+                if self.train_poses_arr.shape[1] != self.pose_mean.shape[0]:
+                    if self.input_data_mode == InputDataMode.TF_IMAGE_SUCTION:
+                        self.pose_mean = np.insert(self.pose_mean, self.pose_mean.shape[0], [0,0,0])
+                        self.pose_mean = np.insert(self.pose_mean, 0, [0,0])
+
+                        self.pose_std = np.insert(self.pose_std, self.pose_std.shape[0], [1,1,1])
+                        self.pose_std = np.insert(self.pose_std, 0, [1,1])
+
                 # get batch indices uniformly at random
                 train_ind = self.train_index_map[train_data_filename]
                 np.random.shuffle(train_ind)
@@ -1086,6 +1108,7 @@ class SGDOptimizer(object):
                 train_data[start_i:end_i, ...] = np.copy(self.train_data_arr)
                 train_poses[start_i:end_i,:] = self._read_pose_data(np.copy(self.train_poses_arr), self.input_data_mode)
                 label_data[start_i:end_i] = np.copy(self.train_label_arr)
+                print(label_data)
 
                 del self.train_data_arr
                 del self.train_poses_arr
