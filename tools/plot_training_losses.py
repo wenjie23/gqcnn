@@ -66,7 +66,7 @@ if __name__ == '__main__':
 
     val_errors = np.r_[pct_pos_val, val_errors]
     val_iters = np.r_[0, val_iters]
-    
+
     # window the training error
     i = 0
     train_errors = []
@@ -75,7 +75,7 @@ if __name__ == '__main__':
     while i < raw_train_errors.shape[0]:
         train_errors.append(np.mean(raw_train_errors[i:i+WINDOW]))
         train_losses.append(np.mean(raw_train_losses[i:i+WINDOW]))
-        train_iters.append(i)
+        train_iters.append(raw_train_iters[i])
         i += WINDOW
     train_errors = np.array(train_errors)
     train_losses = np.array(train_losses)
