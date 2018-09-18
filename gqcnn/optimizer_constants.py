@@ -66,6 +66,7 @@ class PreprocMode:
 class InputDataMode:
     TF_IMAGE = 'tf_image'
     TF_IMAGE_SUCTION = 'tf_image_suction'
+    TF_IMAGE_SUCTION_FIZYR = 'tf_image_suction_fizyr'
     TF_IMAGE_PERSPECTIVE = 'tf_image_with_perspective'
     RAW_IMAGE = 'raw_image'
     RAW_IMAGE_PERSPECTIVE = 'raw_image_with_perspective'

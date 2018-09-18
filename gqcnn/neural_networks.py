@@ -390,8 +390,10 @@ class GQCNN(object):
             self._input_data_mode = config['input_data_mode']
             if self._input_data_mode == 'tf_image':
                 self._gripper_mode = GripperMode.LEGACY_PARALLEL_JAW
-            elif self._input_data_mode == 'tf_image_suction':
+            elif self._input_data_mode == 'tf_image_suction' or 'TF_IMAGE_SUCTION_FIZYR':
                 self._gripper_mode = GripperMode.LEGACY_SUCTION                
+            else:
+                raise ValueError("input_data_mode:"+self._input_data_mode+"is not supported.")
             
         # setup correct pose dimensions
         self._pose_dim = pose_dim(self._gripper_mode)
@@ -918,7 +920,7 @@ class GQCNN(object):
                 dim = min(self._batch_size, num_images - i)
                 cur_ind = i
                 end_ind = cur_ind + dim
-                self._im_mean = 1.47 # this value is to make the trained model works for ur local data
+                #self._im_mean =  1.47 # this value is to make the trained model works for ur local data
                 self._input_im_arr[:dim, :, :, :] = (
                     image_arr[cur_ind:end_ind, :, :, :] - self._im_mean) / self._im_std
                 self._input_pose_arr[:dim, :] = (

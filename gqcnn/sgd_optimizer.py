@@ -337,7 +337,7 @@ class SGDOptimizer(object):
             self.train_stats_logger.update(train_eval_iter=None, train_loss=None, train_error=None, total_train_error=None, val_eval_iter=step, val_error=val_error, learning_rate=None)
 
             # log & save everything!
-            logging.info('Saving final model to:',self.experiment_dir)
+            logging.info('Saving final model to:' + self.experiment_dir)
             self.train_stats_logger.log()
             self.saver.save(self.sess, os.path.join(self.experiment_dir, 'model.ckpt'))
 
@@ -398,6 +398,8 @@ class SGDOptimizer(object):
             return pose_arr[:,2:3]
         elif input_data_mode == InputDataMode.TF_IMAGE_SUCTION:
             return pose_arr[:,2:4]
+        elif input_data_mode == InputDataMode.TF_IMAGE_SUCTION_FIZYR:
+            return np.c_[pose_arr[:,2:3], pose_arr[:,9:10]]
         elif input_data_mode == InputDataMode.TF_IMAGE_PERSPECTIVE:
             return np.c_[pose_arr[:,2:3], pose_arr[:,4:6]]
         else:
@@ -475,7 +477,7 @@ class SGDOptimizer(object):
         self.weights = self.gqcnn.get_weights()
 
         # open a tf session for the gqcnn object and store it also as the optimizer session
-        self.saver = tf.train.Saver()
+        self.saver = tf.train.Saver(max_to_keep=None)
         self.sess = self.gqcnn.open_session()
 
         # setup term event/dead event
@@ -577,6 +579,14 @@ class SGDOptimizer(object):
             else:
                 self.gqcnn.update_pose_mean = (self.pose_mean[2:4])
                 self.gqcnn.update_pose_std = (self.pose_std[2:4])
+        elif self.input_data_mode == InputDataMode.TF_IMAGE_SUCTION_FIZYR:
+            # depth, theta
+            if self.pose_mean.shape[0] == 2:
+                self.gqcnn.update_pose_mean = (self.pose_mean)
+                self.gqcnn.update_pose_std = (self.pose_std)
+            else:
+                self.gqcnn.update_pose_mean = (np.r_[self.pose_mean[2],self.pose_mean[9]])
+                self.gqcnn.update_pose_std = (np.r_[self.pose_std[2],self.pose_std[9]])
         elif self.input_data_mode == InputDataMode.TF_IMAGE_PERSPECTIVE:
             # depth, cx, cy
             self.gqcnn.update_pose_mean(np.concatenate([self.pose_mean[2:3], self.pose_mean[4:6]]))
@@ -819,7 +829,7 @@ class SGDOptimizer(object):
         self.input_data_mode = self.cfg['input_data_mode']
         if self.input_data_mode == InputDataMode.TF_IMAGE:
             self.pose_dim = 1 # depth
-        elif self.input_data_mode == InputDataMode.TF_IMAGE_SUCTION:
+        elif self.input_data_mode == InputDataMode.TF_IMAGE_SUCTION or InputDataMode.TF_IMAGE_SUCTION_FIZYR:
             self.pose_dim = 2 # depth, theta
         elif self.input_data_mode == InputDataMode.TF_IMAGE_PERSPECTIVE:
             self.pose_dim = 3 # depth, cx, cy
@@ -1070,10 +1080,15 @@ class SGDOptimizer(object):
                     if self.input_data_mode == InputDataMode.TF_IMAGE_SUCTION:
                         self.pose_mean = np.insert(self.pose_mean, self.pose_mean.shape[0], [0,0,0])
                         self.pose_mean = np.insert(self.pose_mean, 0, [0,0])
-
                         self.pose_std = np.insert(self.pose_std, self.pose_std.shape[0], [1,1,1])
                         self.pose_std = np.insert(self.pose_std, 0, [1,1])
-
+                    elif self.input_data_mode == InputDataMode.TF_IMAGE_SUCTION_FIZYR:
+                        self.pose_mean = np.insert(self.pose_mean, self.pose_mean.shape[0], [0])
+                        self.pose_mean = np.insert(self.pose_mean, 1, [0,0])
+                        self.pose_mean = np.insert(self.pose_mean, 0, [0,0])
+                        self.pose_std = np.insert(self.pose_std, self.pose_std.shape[0], [1])
+                        self.pose_std = np.insert(self.pose_std, 1, [1,1])
+                        self.pose_std = np.insert(self.pose_std, 0, [1,1])
                 # get batch indices uniformly at random
                 train_ind = self.train_index_map[train_data_filename]
                 np.random.shuffle(train_ind)
@@ -1108,7 +1123,6 @@ class SGDOptimizer(object):
                 train_data[start_i:end_i, ...] = np.copy(self.train_data_arr)
                 train_poses[start_i:end_i,:] = self._read_pose_data(np.copy(self.train_poses_arr), self.input_data_mode)
                 label_data[start_i:end_i] = np.copy(self.train_label_arr)
-                print(label_data)
 
                 del self.train_data_arr
                 del self.train_poses_arr
