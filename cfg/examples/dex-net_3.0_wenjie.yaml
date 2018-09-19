@@ -1,0 +1,104 @@
+# visualization
+vis:
+  vis_cropped_rgbd_image: 0
+  vis_uncropped_color_image: 0
+  vis_uncropped_depth_image: 0
+
+# padding for the cropped images so when they are rotated to be centered on the grasp point there will not be any gaps where there is no part of the image
+width_pad: 0
+height_pad: 0
+
+# inpaint
+inpaint_rescale_factor: 0.5 # amount to rescale the images before inpainting (smaller numbers == faster code) 
+
+# policy params
+policy:
+  # optimization params
+  num_seed_samples: 3000 #200 # number of seed samples
+  num_gmm_samples: 50
+  num_iters: 0
+  gmm_refit_p: 0.25
+  gmm_component_frac: 0.4
+  gmm_reg_covar: 0.01
+
+  # general params
+  deterministic: 1
+  max_approach_angle: 80
+
+  # perform random grasp
+  random_grasp: 0 # it will overwrite num_iters to 0 when it's set to 1
+  random_threshold: 0.03 # chose a random grasp has q value higher than the threshold
+  
+  # metric params
+  metric:
+    type: gqcnn
+    gqcnn_model: /home/wduan/base/src/gqcnn/models/GQCNN-3.0
+
+
+    crop_height: 96 #96
+    crop_width: 96 #96
+
+
+  # sampling params
+  sampling:
+    # type
+    type: suction
+
+    # params
+    max_suction_dir_optical_axis_angle: 80
+    delta_theta: 1
+    delta_phi: 1
+    mean_depth: 0.0025
+    sigma_depth: 0.000001
+    min_suction_dist: 1.0
+    angle_dist_weight: 5.0
+    depth_gaussian_sigma: 1.0
+
+    max_dist_from_center: 10000000000
+    max_num_samples: 10000
+
+    num_grasp_samples: 500
+
+    smooth_normal: 0 # options to process normal_cloud_im: 0,median,average,gaussian
+    kernel_size: 17
+
+    PCA_normal: 0
+    radius: 0.005 # the search radius of PCA method in meters
+
+  # visualization
+  vis:
+    grasp_sampling : 0
+    tf_images: 0
+    plane: 0
+    grasp_candidates: 1
+    elite_grasps: 0
+    grasp_ranking: 1
+    grasp_plan: 0
+    final_grasp: 1
+
+    vmin: 0.6
+    vmax: 1.6
+
+    k: 25
+
+  # OpenCV visualization (it works when python is not initialized in main thread)
+  cv2vis:
+    grasp_sampling : 0
+    normal_cloud_im: 0
+    tf_images: 0
+    grasp_candidates: 0
+    grasp_plan: 0
+
+    k: 4 # number tf_images to be displayed
+
+  # Data collection params
+  collection:
+    depth_image: 1
+    ori_tf_image: 1
+    tf_image: 1
+    grasp_pose: 1
+    label: 1
+
+    suction_cup_diameter: 25 # the diameter of the gripper's suction cup, in millimeter
+    
+
