@@ -137,7 +137,6 @@ def callback(data):
     print("~~~~~~~~~~~~~~~~~~")
 
 
-
 def monitor():
     # initialize node
     rospy.init_node('monitor', anonymous = True)

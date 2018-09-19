@@ -70,8 +70,6 @@ class DataRecorder(object):
             with open(label_path,'w')  as jsonFile:
                 json.dump(data,jsonFile)
 
-
-
     def _ori_tf_image(self, depth_im, grasp):
         """
         Get the tf_image of the grasp with origianl resolution
@@ -109,6 +107,3 @@ class DataRecorder(object):
         pose_tensor[10] = self.config['collection']['suction_cup_diameter']
         return pose_tensor
 
-
-
-        
