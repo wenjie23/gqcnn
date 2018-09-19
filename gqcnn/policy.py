@@ -657,7 +657,6 @@ class CrossEntropyRobustGraspingPolicy(GraspingPolicy):
         seed_set_start = time()
         rgbd_im = state.rgbd_im
         depth_im = rgbd_im.depth
-        np.save('/home/wduan/base/src/gqcnn/gqcnn/depth_im.npy',depth_im.data)
         camera_intr = state.camera_intr
         segmask = state.segmask
         point_cloud_im = camera_intr.deproject_to_image(depth_im)
