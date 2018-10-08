@@ -38,7 +38,7 @@ def load_data(input_dir,output_dir):
     # initializing numpy arrays
     tf_image = np.zeros((NUM_OF_DATAPOINT, 32, 32, 1))
     ori_tf_image = np.zeros((NUM_OF_DATAPOINT,155,155,1))
-    pose_data = np.zeros((NUM_OF_DATAPOINT,11))
+    pose_data = np.zeros((NUM_OF_DATAPOINT,7))
     label_data = np.zeros((NUM_OF_DATAPOINT))
     tf_image_num = 0
     tf_file_index = 0
@@ -77,7 +77,8 @@ def load_data(input_dir,output_dir):
         
         if POSE_FILENAME in files:
             pose_arr  = np.load(os.path.join(dirs, POSE_FILENAME))
-            pose_data[pose_num] = pose_arr
+            # read sub-elements of the pose array
+            pose_data[pose_num] = np.r_[pose_arr[0:3], pose_arr[9:10], pose_arr[3:6]]
             pose_num += 1
             # check number of data points saved in a numpy array
             if pose_num >= NUM_OF_DATAPOINT:
