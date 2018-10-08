@@ -29,7 +29,6 @@ Jeff Mahler
 """
 import argparse
 import logging
-import IPython
 import numpy as np
 import os
 import sys
