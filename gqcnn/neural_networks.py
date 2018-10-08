@@ -920,7 +920,7 @@ class GQCNN(object):
                 dim = min(self._batch_size, num_images - i)
                 cur_ind = i
                 end_ind = cur_ind + dim
-                #self._im_mean =  1.47 # this value is to make the trained model works for ur local data
+                self._im_mean =  1.47 # this value is to make the trained model works for fizyr local data before we save the mean value of fizyr dataset.
                 self._input_im_arr[:dim, :, :, :] = (
                     image_arr[cur_ind:end_ind, :, :, :] - self._im_mean) / self._im_std
                 self._input_pose_arr[:dim, :] = (
