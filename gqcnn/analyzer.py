@@ -46,6 +46,8 @@ from visualization import Visualizer2D as vis2d
 from . import GQCNN, Grasp2D, SuctionPoint2D
 from .utils import GripperMode, ImageMode
 from .utils import *
+from .optimizer_constants import ImageFileTemplates
+from .learning_analysis import ClassificationResult
 
 PCT_POS_VAL_FILENAME = 'pct_pos_val.npy'
 TRAIN_LOSS_FILENAME = 'train_losses.npy'
@@ -85,7 +87,8 @@ class GQCNNAnalyzer(object):
         
     def analyze(self, model_dir,
                 output_dir,
-                dataset_config=None):
+                dataset_config=None,
+                splits_dir=None):
         """ Analyzes a GQCNN model.
 
         Parameters
@@ -119,7 +122,8 @@ class GQCNNAnalyzer(object):
         # run predictions
         train_result, val_result = self._run_prediction_single_model(model_dir,
                                                                      model_output_dir,
-                                                                     dataset_config)
+                                                                     dataset_config,
+                                                                     splits_dir)
 
         # finally plot curves
         self._plot(model_dir,
@@ -150,7 +154,8 @@ class GQCNNAnalyzer(object):
         
     def _run_prediction_single_model(self, model_dir,
                                      model_output_dir,
-                                     dataset_config):
+                                     dataset_config,
+                                     splits_dir):
         """ Analyze the performance of a single model. """
         # read in model config
         model_config_filename = os.path.join(model_dir, 'config.json')
@@ -163,27 +168,120 @@ class GQCNNAnalyzer(object):
         gqcnn.open_session()
         gripper_mode = gqcnn.gripper_mode
         
-        # read params from the config
-        if dataset_config is None:
-            dataset_dir = model_config['dataset_dir']
-            split_name = model_config['split_name']
-            image_field_name = model_config['image_field_name']
-            pose_field_name = model_config['pose_field_name']
-            metric_name = model_config['target_metric_name']
-            metric_thresh = model_config['metric_thresh']
-        else:
-            dataset_dir = dataset_config['dataset_dir']
-            split_name = dataset_config['split_name']
-            image_field_name = dataset_config['image_field_name']
-            pose_field_name = dataset_config['pose_field_name']
-            metric_name = dataset_config['target_metric_name']
-            metric_thresh = dataset_config['metric_thresh']
-            gripper_mode = dataset_config['gripper_mode']
+        if splits_dir is None:
+            # read params from the config
+            if dataset_config is None:
+                dataset_dir = model_config['dataset_dir']
+                split_name = model_config['split_name']
+                image_field_name = model_config['image_field_name']
+                pose_field_name = model_config['pose_field_name']
+                metric_name = model_config['target_metric_name']
+                metric_thresh = model_config['metric_thresh']
+            else:
+                dataset_dir = dataset_config['dataset_dir']
+                split_name = dataset_config['split_name']
+                image_field_name = dataset_config['image_field_name']
+                pose_field_name = dataset_config['pose_field_name']
+                metric_name = dataset_config['target_metric_name']
+                metric_thresh = dataset_config['metric_thresh']
+                gripper_mode = dataset_config['gripper_mode']
+    
+            logging.info('Loading dataset %s' %(dataset_dir))
+            dataset = TensorDataset.open(dataset_dir)
+            train_indices, val_indices, _ = dataset.split(split_name)
             
-        logging.info('Loading dataset %s' %(dataset_dir))
-        dataset = TensorDataset.open(dataset_dir)
-        train_indices, val_indices, _ = dataset.split(split_name)
-        
+    
+            
+            # aggregate training and validation true labels and predicted probabilities
+            all_predictions = []
+            all_labels = []
+            for i in range(dataset.num_tensors):
+                # log progress
+                if i % self.log_rate == 0:
+                    logging.info('Predicting tensor %d of %d' %(i+1, dataset.num_tensors))
+    
+                # read in data
+                image_arr = dataset.tensor(image_field_name, i).arr
+                pose_arr = read_pose_data(dataset.tensor(pose_field_name, i).arr,
+                                          gripper_mode)
+                metric_arr = dataset.tensor(metric_name, i).arr
+                label_arr = 1 * (metric_arr > metric_thresh)
+                label_arr = label_arr.astype(np.uint8)
+    
+                # predict with GQ-CNN
+                predictions = gqcnn.predict(image_arr, pose_arr)
+                
+                # aggregate
+                all_predictions.extend(predictions[:,1].tolist())
+                all_labels.extend(label_arr.tolist())
+            # create arrays
+            all_predictions = np.array(all_predictions)
+            all_labels = np.array(all_labels)
+            train_predictions = all_predictions[train_indices]
+            val_predictions = all_predictions[val_indices]
+            train_labels = all_labels[train_indices]
+            val_labels = all_labels[val_indices]
+        else:
+            # read indices from pkl files
+            # read file names
+            data_dir = '/home/wduan/data_external/fizyr_09_27_18/tensors'
+            all_filenames = os.listdir(data_dir)            
+            im_filenames = [f for f in all_filenames if f.find(ImageFileTemplates.depth_im_tf_table_tensor_template) > -1]
+            pose_filenames = [f for f in all_filenames if f.find(ImageFileTemplates.hand_poses_template) > -1]
+            label_filenames = [f for f in all_filenames if f.find('real_robot_graspability') > -1]
+            # sort file names
+            im_filenames.sort(key = lambda x: int(x[-9:-4]))
+            pose_filenames.sort(key = lambda x: int(x[-9:-4]))
+            label_filenames.sort(key = lambda x: int(x[-9:-4]))
+            # read indices files
+            train_index_map_filename = os.path.join(splits_dir, 'train_indices_image_wise.pkl')
+            val_index_map_filename = os.path.join(splits_dir, 'val_indices_image_wise.pkl')
+            train_index_map = pkl.load(open(train_index_map_filename, 'rb'))
+            val_index_map = pkl.load(open(val_index_map_filename, 'rb'))
+            # initialize arrays
+            train_predictions = []
+            train_labels = []
+            val_predictions = []
+            val_labels = []
+
+            for i, file_name in enumerate(train_index_map):
+                data_arr = np.load(os.path.join(data_dir,file_name))['arr_0'].astype(np.float32)
+                pose_arr = np.load(os.path.join(data_dir,pose_filenames[i]))['arr_0'].astype(np.float32)
+                label_arr = np.load(os.path.join(data_dir,label_filenames[i]))['arr_0'].astype(np.uint8)
+                # get the indices of training and val data
+                train_ind = train_index_map[file_name]
+                val_ind = val_index_map[file_name]
+                # subsample the loaded data
+                train_data_arr = data_arr[train_ind, ...]
+                train_pose_arr = pose_arr[train_ind,2:4]
+                train_label_arr = label_arr[train_ind]
+                val_data_arr = data_arr[val_ind, ...]
+                val_pose_arr = pose_arr[val_ind,2:4]
+                val_label_arr = label_arr[val_ind]
+                # predict training data
+                predictions = gqcnn.predict(train_data_arr,train_pose_arr)
+                train_predictions.extend(predictions[:,1].tolist())
+                train_labels.extend(train_label_arr.tolist())
+                # predict val data
+                predictions = gqcnn.predict(val_data_arr,val_pose_arr)
+                val_predictions.extend(predictions[:,1].tolist())
+                val_labels.extend(val_label_arr.tolist())
+            # creat arrays
+            train_predictions = np.array(train_predictions)
+            train_labels = np.array(train_labels)
+            val_predictions = np.array(val_predictions)
+            val_labels = np.array(val_labels)
+            all_predictions = np.r_[train_predictions, val_predictions]
+            all_labels = np.r_[train_labels, val_labels]
+
+        # close session
+        gqcnn.close_session()            
+        # aggregate results
+        train_result = BinaryClassificationResult(train_predictions, train_labels)
+        val_result = BinaryClassificationResult(val_predictions, val_labels)
+        train_result.save(os.path.join(model_output_dir, 'train_result.cres'))
+        val_result.save(os.path.join(model_output_dir, 'val_result.cres'))
+
         # visualize conv filters
         conv1_filters = gqcnn.filters
         num_filt = conv1_filters.shape[3]
@@ -195,46 +293,6 @@ class GQCNNAnalyzer(object):
             vis2d.imshow(DepthImage(filt))
             figname = os.path.join(model_output_dir, 'conv1_filters.pdf')
         vis2d.savefig(figname, dpi=self.dpi)
-        
-        # aggregate training and validation true labels and predicted probabilities
-        all_predictions = []
-        all_labels = []
-        for i in range(dataset.num_tensors):
-            # log progress
-            if i % self.log_rate == 0:
-                logging.info('Predicting tensor %d of %d' %(i+1, dataset.num_tensors))
-
-            # read in data
-            image_arr = dataset.tensor(image_field_name, i).arr
-            pose_arr = read_pose_data(dataset.tensor(pose_field_name, i).arr,
-                                      gripper_mode)
-            metric_arr = dataset.tensor(metric_name, i).arr
-            label_arr = 1 * (metric_arr > metric_thresh)
-            label_arr = label_arr.astype(np.uint8)
-
-            # predict with GQ-CNN
-            predictions = gqcnn.predict(image_arr, pose_arr)
-            
-            # aggregate
-            all_predictions.extend(predictions[:,1].tolist())
-            all_labels.extend(label_arr.tolist())
-            
-        # close session
-        gqcnn.close_session()            
-
-        # create arrays
-        all_predictions = np.array(all_predictions)
-        all_labels = np.array(all_labels)
-        train_predictions = all_predictions[train_indices]
-        val_predictions = all_predictions[val_indices]
-        train_labels = all_labels[train_indices]
-        val_labels = all_labels[val_indices]
-        
-        # aggregate results
-        train_result = BinaryClassificationResult(train_predictions, train_labels)
-        val_result = BinaryClassificationResult(val_predictions, val_labels)
-        train_result.save(os.path.join(model_output_dir, 'train_result.cres'))
-        val_result.save(os.path.join(model_output_dir, 'val_result.cres'))
 
         # save images
         vis2d.figure()
@@ -388,6 +446,8 @@ class GQCNNAnalyzer(object):
             'ap_score': train_result.ap_score,
             'auc_score': train_result.auc_score
         }
+        print('train_summary:')
+        print(train_summary_stats)
         train_stats_filename = os.path.join(model_output_dir, 'train_stats.json')
         json.dump(train_summary_stats, open(train_stats_filename, 'w'),
                   indent=JSON_INDENT,
@@ -398,6 +458,8 @@ class GQCNNAnalyzer(object):
             'ap_score': val_result.ap_score,
             'auc_score': val_result.auc_score
         }
+        print('val_summary:')
+        print(val_summary_stats)
         val_stats_filename = os.path.join(model_output_dir, 'val_stats.json')
         json.dump(val_summary_stats, open(val_stats_filename, 'w'),
                   indent=JSON_INDENT,
