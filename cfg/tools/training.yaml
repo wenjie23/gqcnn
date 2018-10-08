@@ -2,38 +2,45 @@
 mode: finetuning
 
 # dataset 
-dataset_dir: /home/wduan/data_external/dexnet_09_13_17/tensors
-output_dir: /home/wduan/data_external/test_fintuning
+dataset_dir: /home/wduan/data_external/fizyr_09_27_18/tensors
+output_dir: /home/wduan/data_external/finetuning
 model_dir: /home/wduan/base/src/gqcnn/models/GQCNN-3.0
 
 # general optimization parameters
-train_batch_size: 64
-val_batch_size: 16
-num_epochs: 1.0     # number of epochs to train for
-eval_frequency: 1000  # how often to get validation error 
-save_frequency: 1000  # how often to save output
-vis_frequency: 1000
-log_frequency: 1     # how often to log output
-show_filters: 0
+train_batch_size: 64 #64
+val_batch_size: 16 #16
+num_epochs: 40 # number of epochs to train for
+eval_frequency: 50  # how often to get validation error 
+save_frequency: 200  # how often to save output
+max_to_keep: 1  # the maximum number of recent checkpoint files to keep. ('0' to keep all checkpoints)
+vis_frequency: 1
+log_frequency: 1 # how often to log output (don't change it)
+show_filters: 1
 
 queue_capacity: 100  # capacity of prefetch queue
 queue_sleep: 0.01     # how long to sleep between prefetches
 
 data_split_mode: image_wise # how to split up the data into training vs validation: options are image_wise, stable_pose_wise, object_wise
 train_pct: 0.8 # percentage of the data to use for training vs validation
-total_pct: 0.1 # percentage of all the files to use
+train_inter_pct: 0.6 # percentage of training data to be used of the pre-saved training indices (ex. if there are 8000 indices saved in the .pkl file, then 800 data points will be used)
+total_pct: 1.0 # percentage of all the files to use
 eval_total_train_error: 0
+
+splits: # use pre-saved train-val data indices, delete this key to regenerate training data and val data indices based on data_split_mode, train_pct and total_pct parameter
+  training: /home/wduan/data_external/fizyr_09_27_18/train_indices_image_wise.pkl
+  validation: /home/wduan/data_external/fizyr_09_27_18/val_indices_image_wise.pkl
 
 loss: sparse
 optimizer: momentum
 train_l2_regularizer: 0.0005
-base_lr: 0.01
-decay_step_multiplier: 0.66   # number of times to go through training datapoints before stepping down decay rate
+base_lr: 0.0001
+decay_step_multiplier: 2 #0.66   # number of times to go through training datapoints before stepping down decay rate
 decay_rate: 0.95
 momentum_rate: 0.9
 max_training_examples_per_load: 128
 
-fine_tune: 0
+fine_tune: 1
+update_metrics: 1
 update_fc_only: 0
 update_conv0_only: 0
 reinit_pc1: 0
@@ -49,14 +56,14 @@ num_tensor_channels: 1
 
 num_random_files: 100
 
-target_metric_name: robust_suction_wrench_resistance
-metric_thresh: 0.002
+target_metric_name: real_robot_graspability
+metric_thresh: 0.5 #0.002
 
 # denoising / synthetic data params
-multiplicative_denoising: 1
+multiplicative_denoising: 0
 gamma_shape: 1000.00
 
-symmetrize: 1
+symmetrize: 0
 
 morphological: 0
 morph_open_rate: 0.25
@@ -74,7 +81,7 @@ gradient_dropout_sigma: 0.5
 gradient_dropout_shape: 15
 gradient_dropout_scale: 0.001
 
-gaussian_process_denoising: 1
+gaussian_process_denoising: 0
 gaussian_process_rate: 0.5
 gaussian_process_scaling_factor: 4.0
 gaussian_process_sigma: 0.005
@@ -107,7 +114,7 @@ gqcnn_config:
   im_width: 32
   im_channels: 1
   # needs to match input data mode that was used for training, determines the pose dimensions for the network
-  input_data_mode: tf_image_suction
+  input_data_mode: tf_image_suction_fizyr
 
   # prediction batch size, in training this will be overriden by the val_batch_size in the SGDOptimizer's config file
   batch_size: 16
@@ -115,41 +122,41 @@ gqcnn_config:
   # architecture
   architecture:
     conv1_1:
-      filt_dim: 5
-      num_filt: 32
+      filt_dim: 7
+      num_filt: 64
       pool_size: 1
       pool_stride: 1  
       norm: 0
       norm_type: local_response
     conv1_2:
-      filt_dim: 3
-      num_filt: 32
+      filt_dim: 5
+      num_filt: 64
       pool_size: 2
       pool_stride: 2
       norm: 1
       norm_type: local_response
     conv2_1:
       filt_dim: 3
-      num_filt: 32
+      num_filt: 64
       pool_size: 1
       pool_stride: 1  
       norm: 0
       norm_type: local_response
     conv2_2:
       filt_dim: 3
-      num_filt: 32
+      num_filt: 64
       pool_size: 1
       pool_stride: 1
       norm: 1
       norm_type: local_response
     pc1:
-      out_size: 4
+      out_size: 128
     pc2:
       out_size: 0
     fc3:
       out_size: 1024
     fc4:
-      out_size: 512
+      out_size: 1024
     fc5:
       out_size: 2
 
