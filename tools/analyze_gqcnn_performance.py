@@ -45,11 +45,13 @@ if __name__ == '__main__':
     parser.add_argument('--output_dir', type=str, default=None, help='path to save the analysis')
     parser.add_argument('--dataset_config_filename', type=str, default=None, help='path to a configuration file for testing on a custom dataset')
     parser.add_argument('--config_filename', type=str, default=None, help='path to the configuration file to use')
+    parser.add_argument('--splits_dir', type=str, default=None, help='path to load pkl files of train & val indices')
     args = parser.parse_args()
     model_dir = args.model_dir
     output_dir = args.output_dir
     dataset_config_filename = args.dataset_config_filename
     config_filename = args.config_filename
+    splits_dir = args.splits_dir
 
     # set defaults
     if output_dir is None:
@@ -81,4 +83,4 @@ if __name__ == '__main__':
     
     # run the analyzer
     analyzer = GQCNNAnalyzer(config)
-    analyzer.analyze(model_dir, output_dir, dataset_config)
+    analyzer.analyze(model_dir, output_dir, dataset_config, splits_dir)
