@@ -267,12 +267,11 @@ class SGDOptimizer(object):
                 self._check_dead_queue()
 
                 # run optimization
+
                 _, l, lr, predictions, batch_labels, output, train_images, conv1_1W, conv1_1b, pose_node = self.sess.run(
                         [optimizer, loss, learning_rate, train_predictions, self.train_labels_node, self.train_net_output, self.input_im_node, self.weights.conv1_1W, self.weights.conv1_1b, self.input_pose_node], options=GeneralConstants.timeout_option)
-
                 ex = np.exp(output - np.tile(np.max(output, axis=1)[:,np.newaxis], [1,2]))
                 softmax = ex / np.tile(np.sum(ex, axis=1)[:,np.newaxis], [1,2])
-                
                 logging.debug('Max ' +  str(np.max(softmax[:,1])))
                 logging.debug('Min ' + str(np.min(softmax[:,1])))
                 logging.debug('Pred nonzero ' + str(np.sum(np.argmax(predictions, axis=1))))
@@ -462,8 +461,7 @@ class SGDOptimizer(object):
             try:
                 self.weights = self.gqcnn.get_weights()
             except:
-                self.gqcnn.init_weights_gaussian()        
-
+                raise ValueError('Cannot get pre-loaded gqcnn weights!')
             # this assumes that a gqcnn was passed in that was initialized with weights from a model using GQCNN.load(), so all that has to
             # be done is to possibly reinitialize fc3/fc4/fc5
             reinit_pc1 = False
@@ -477,7 +475,7 @@ class SGDOptimizer(object):
         self.weights = self.gqcnn.get_weights()
 
         # open a tf session for the gqcnn object and store it also as the optimizer session
-        self.saver = tf.train.Saver(max_to_keep=None)
+        self.saver = tf.train.Saver(max_to_keep=self.max_to_keep)
         self.sess = self.gqcnn.open_session()
 
         # setup term event/dead event
@@ -493,7 +491,7 @@ class SGDOptimizer(object):
         logging.info('Computing image mean')
         mean_filename = os.path.join(self.experiment_dir, 'mean.npy')
         std_filename = os.path.join(self.experiment_dir, 'std.npy')
-        if self.cfg['fine_tune']:
+        if self.cfg['fine_tune'] and not self.cfg['update_metrics']:
             self.data_mean = self.gqcnn.get_im_mean()
             self.data_std = self.gqcnn.get_im_std()
         else:
@@ -520,7 +518,7 @@ class SGDOptimizer(object):
         logging.info('Computing pose mean')
         self.pose_mean_filename = os.path.join(self.experiment_dir, 'pose_mean.npy')
         self.pose_std_filename = os.path.join(self.experiment_dir, 'pose_std.npy')
-        if self.cfg['fine_tune']:
+        if self.cfg['fine_tune'] and not self.cfg['update_metrics']:
             self.pose_mean = self.gqcnn.get_pose_mean()
             self.pose_std = self.gqcnn.get_pose_std()
         else:
@@ -548,7 +546,7 @@ class SGDOptimizer(object):
             np.save(self.pose_mean_filename, self.pose_mean)
             np.save(self.pose_std_filename, self.pose_std)
 
-        if self.cfg['fine_tune']:
+        if self.cfg['fine_tune'] and not self.cfg['update_metrics']:
             out_mean_filename = os.path.join(self.experiment_dir, 'mean.npy')
             out_std_filename = os.path.join(self.experiment_dir, 'std.npy')
             out_pose_mean_filename = os.path.join(self.experiment_dir, 'pose_mean.npy')
@@ -574,19 +572,19 @@ class SGDOptimizer(object):
         elif self.input_data_mode == InputDataMode.TF_IMAGE_SUCTION:
             # depth, theta
             if self.pose_mean.shape[0] == 2:
-                self.gqcnn.update_pose_mean = (self.pose_mean)
-                self.gqcnn.update_pose_std = (self.pose_std)
+                self.gqcnn.update_pose_mean(self.pose_mean)
+                self.gqcnn.update_pose_std(self.pose_std)
             else:
-                self.gqcnn.update_pose_mean = (self.pose_mean[2:4])
-                self.gqcnn.update_pose_std = (self.pose_std[2:4])
+                self.gqcnn.update_pose_mean(self.pose_mean[2:4])
+                self.gqcnn.update_pose_std(self.pose_std[2:4])
         elif self.input_data_mode == InputDataMode.TF_IMAGE_SUCTION_FIZYR:
             # depth, theta
             if self.pose_mean.shape[0] == 2:
-                self.gqcnn.update_pose_mean = (self.pose_mean)
-                self.gqcnn.update_pose_std = (self.pose_std)
+                self.gqcnn.update_pose_mean(self.pose_mean)
+                self.gqcnn.update_pose_std(self.pose_std)
             else:
-                self.gqcnn.update_pose_mean = (np.r_[self.pose_mean[2],self.pose_mean[9]])
-                self.gqcnn.update_pose_std = (np.r_[self.pose_std[2],self.pose_std[9]])
+                self.gqcnn.update_pose_mean(np.r_[self.pose_mean[2:3],self.pose_mean[9:10]])
+                self.gqcnn.update_pose_std(np.r_[self.pose_std[2:3],self.pose_std[9:10]])
         elif self.input_data_mode == InputDataMode.TF_IMAGE_PERSPECTIVE:
             # depth, cx, cy
             self.gqcnn.update_pose_mean(np.concatenate([self.pose_mean[2:3], self.pose_mean[4:6]]))
@@ -641,6 +639,14 @@ class SGDOptimizer(object):
         if os.path.exists(train_index_map_filename):
             self.train_index_map = pkl.load(open(train_index_map_filename, 'rb'))
             self.val_index_map = pkl.load(open(val_index_map_filename, 'rb'))
+            if self.train_inter_pct !=1:
+                # subsample training data from the pre-saved 'train indices'
+                data_point_num = 0
+                for filename in self.train_index_map:
+                    data_num = int(self.train_inter_pct * len(self.train_index_map[filename]))
+                    np.random.shuffle(self.train_index_map[filename])
+                    self.train_index_map[filename] = np.sort(self.train_index_map[filename][:data_num])
+                    data_point_num+=self.train_index_map[filename].shape[0]
         else:            
             # get training and validation indices
             all_indices = np.arange(self.num_datapoints)
@@ -779,6 +785,7 @@ class SGDOptimizer(object):
         self.image_mode = self.cfg['image_mode']
         self.data_split_mode = self.cfg['data_split_mode']
         self.train_pct = self.cfg['train_pct']
+        self.train_inter_pct = self.cfg['train_inter_pct']
         self.total_pct = self.cfg['total_pct']
 
         self.train_batch_size = self.cfg['train_batch_size']
@@ -790,6 +797,7 @@ class SGDOptimizer(object):
         self.num_epochs = self.cfg['num_epochs']
         self.eval_frequency = self.cfg['eval_frequency']
         self.save_frequency = self.cfg['save_frequency']
+        self.max_to_keep = self.cfg['max_to_keep']
         self.log_frequency = self.cfg['log_frequency']
         self.vis_frequency = self.cfg['vis_frequency']
 
@@ -844,7 +852,7 @@ class SGDOptimizer(object):
         self.num_categories = 2
 
         self.num_datapoints = self.images_per_file * self.num_files
-        self.num_train = int(self.train_pct * self.num_datapoints)
+        self.num_train = int(self.train_pct * self.train_inter_pct * self.num_datapoints)
         self.decay_step = self.decay_step_multiplier * self.num_train
 
     def _setup_denoising_and_synthetic(self):
@@ -1084,10 +1092,10 @@ class SGDOptimizer(object):
                         self.pose_std = np.insert(self.pose_std, 0, [1,1])
                     elif self.input_data_mode == InputDataMode.TF_IMAGE_SUCTION_FIZYR:
                         self.pose_mean = np.insert(self.pose_mean, self.pose_mean.shape[0], [0])
-                        self.pose_mean = np.insert(self.pose_mean, 1, [0,0])
+                        self.pose_mean = np.insert(self.pose_mean, 1, [0,0,0,0,0,0])
                         self.pose_mean = np.insert(self.pose_mean, 0, [0,0])
                         self.pose_std = np.insert(self.pose_std, self.pose_std.shape[0], [1])
-                        self.pose_std = np.insert(self.pose_std, 1, [1,1])
+                        self.pose_std = np.insert(self.pose_std, 1, [1,1,1,1,1,1])
                         self.pose_std = np.insert(self.pose_std, 0, [1,1])
                 # get batch indices uniformly at random
                 train_ind = self.train_index_map[train_data_filename]
@@ -1293,6 +1301,8 @@ class SGDOptimizer(object):
         self.pose_filenames.sort(key = lambda x: int(x[-9:-4]))
         self.label_filenames.sort(key = lambda x: int(x[-9:-4]))
 
+        val_predictions = []
+        val_labels = []
         for data_filename, pose_filename, label_filename in zip(self.im_filenames, self.pose_filenames, self.label_filenames):
             # load next file
             data = np.load(os.path.join(self.data_dir, data_filename))['arr_0']
@@ -1316,17 +1326,33 @@ class SGDOptimizer(object):
 
             # get predictions
             predictions = self.gqcnn.predict(data, poses)
-
             # get error rate
-            if self.training_mode == TrainingMode.CLASSIFICATION:
-                error_rates.append(ClassificationResult([predictions], [labels]).error_rate)
+            if len(self.im_filenames) > 100:
+                # calculate average if there are too many files
+                if self.training_mode == TrainingMode.CLASSIFICATION:
+                    error_rates.append(ClassificationResult([predictions], [labels]).error_rate)
+                else:
+                    error_rates.append(RegressionResult([predictions], [labels]).error_rate)
             else:
-                error_rates.append(RegressionResult([predictions], [labels]).error_rate)
-            
+                val_predictions.extend(predictions.tolist())
+                val_labels.extend(labels.tolist())
+        
+        if len(self.im_filenames) > 100:
+            error_rate = np.mean(error_rates)
+        else:
+            val_predictions = np.array(val_predictions)
+            val_labels = np.array(val_labels)
+            if self.training_mode == TrainingMode.CLASSIFICATION:
+                error_rate = ClassificationResult([val_predictions], [val_labels]).error_rate
+            else:
+                error_rate = RegressionResult([val_predictions], [val_labels]).error_rate
+
         # clean up
         del data
         del poses
         del labels
+        del val_predictions
+        del val_labels
 
         # return average error rate over all files (assuming same size)
-        return np.mean(error_rates)
+        return error_rate
