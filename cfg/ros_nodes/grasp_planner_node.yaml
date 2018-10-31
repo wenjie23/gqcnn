@@ -32,7 +32,7 @@ policy:
   # metric params
   metric:
     type: gqcnn
-    gqcnn_model: /home/wduan/base/src/gqcnn/models/GQCNN-3.0
+    gqcnn_model: /home/fvantilburg/dev/src/gqcnn/models/GQCNN-3.0
 
 
     crop_height: 155 #96
@@ -59,7 +59,7 @@ policy:
 
     num_grasp_samples: 500
 
-    smooth_normal: gaussian # options to process normal_cloud_im: 0,median,average,gaussian
+    smooth_normal: 0 # options to process normal_cloud_im: 0(for original),median,average,gaussian
     kernel_size: 17
 
     PCA_normal: 0
@@ -74,7 +74,7 @@ policy:
     elite_grasps: 0
     grasp_ranking: 0
     grasp_plan: 0
-    final_grasp: 1
+    final_grasp: 0
 
     vmin: 0.6
     vmax: 1.6
@@ -93,12 +93,12 @@ policy:
 
   # Data collection params
   collection:
-    depth_image: 1
-    ori_tf_image: 1
-    tf_image: 1
-    grasp_pose: 1
-    label: 1
+    depth_image: 0
+    ori_tf_image: 0
+    tf_image: 0
+    grasp_pose: 0
+    label: 0
 
-    suction_cup_diameter: 25 # the diameter of the gripper's suction cup, in millimeter
+    suction_cup_diameter: 0 # the diameter of the gripper's suction cup, in millimeter
     
 
