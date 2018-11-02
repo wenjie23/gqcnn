@@ -32,7 +32,7 @@ policy:
   # metric params
   metric:
     type: gqcnn
-    gqcnn_model: /home/fvantilburg/dev/src/gqcnn/models/GQCNN-3.0
+    gqcnn_model: /home/fvantilburg/dev/base/src/gqcnn/models/GQCNN-3.0
 
 
     crop_height: 155 #96

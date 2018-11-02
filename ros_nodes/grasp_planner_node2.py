@@ -93,8 +93,6 @@ class GraspPlanner(object):
 
         # get the grasp indices
         grasp_indices = req.grasp_indices
-        print(type(grasp_indices))
-        print(len(grasp_indices))
 
         # create data recorder object
         dataRecorder = DataRecorder(self.cfg['policy'],save_dir)

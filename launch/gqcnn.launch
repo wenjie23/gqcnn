@@ -5,7 +5,7 @@
   <!-- Configuration file for Grasp Planner Node -->
   <arg name="config"           default="$(find gqcnn)/cfg/ros_nodes/grasp_planner_node.yaml" />
   
-  <node name="GQCNN_grasp_planner"  pkg="gqcnn" type="grasp_planner_node.py" output="screen" >
+  <node name="GQCNN_grasp_planner"  pkg="gqcnn" type="grasp_planner_node2.py" output="screen" >
     	<param name="config"           value="$(arg config)" />
   </node>
 </launch>

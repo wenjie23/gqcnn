@@ -35,6 +35,8 @@ import cv2
 import rospy
 from time import time
 
+import scipy.stats as ss
+
 from sklearn.mixture import GaussianMixture
 
 import autolab_core.utils as utils
@@ -175,11 +177,11 @@ class Policy(object):
     """ Abstract policy class. """
     __metaclass__ = ABCMeta
 
-    def __call__(self, state):
-        return self.action(state)
+    def __call__(self, state, grasp_indices):
+        return self.action(state, grasp_indices)
 
     @abstractmethod
-    def action(self, state):
+    def action(self, state, grasp_indices):
         """ Returns an action for a given state.
         """
         pass
@@ -247,7 +249,7 @@ class GraspingPolicy(Policy):
         """ Returns the GQ-CNN. """
         return self._gqcnn
 
-    def action(self, state):
+    def action(self, state, grasp_indices):
         """ Returns an action for a given state.
         Public handle to function.
         """
@@ -263,7 +265,7 @@ class GraspingPolicy(Policy):
             state.save(state_dir)
 
         # plan action
-        action = self._action(state)
+        action = self._action(state, grasp_indices)
 
         # save action
         if self._logging_dir is not None:
@@ -272,7 +274,7 @@ class GraspingPolicy(Policy):
         return action
         
     @abstractmethod
-    def _action(self, state):
+    def _action(self, state, grasp_indices):
         """ Returns an action for a given state.
         """
         pass
@@ -1026,10 +1028,12 @@ class CrossEntropyRobustGraspingPolicy2(GraspingPolicy):
 
         # depth parameters
         self._mean_depth = 0.0
-        if 'mean_depth' in self._config.keys():
-            self._mean_depth = self._config['mean_depth']
-        self._sigma_depth = self._config['sigma_depth']
+        if 'mean_depth' in self._sampling_config.keys():
+            self._mean_depth = self._sampling_config['mean_depth']
+        self._sigma_depth = self._sampling_config['sigma_depth']
         self._depth_rv = ss.norm(self._mean_depth, self._sigma_depth**2)
+        self._max_suction_dir_optical_axis_angle = np.deg2rad(self._sampling_config['max_suction_dir_optical_axis_angle'])
+
 
     def select(self, grasps, q_values):
         """ Selects the grasp with the highest probability of success.
@@ -1130,13 +1134,14 @@ class CrossEntropyRobustGraspingPolicy2(GraspingPolicy):
         #                                    seed=self._seed)
 
         # grasp indices -> grasps
-        if len(grasp_indices) >= 1
+        if len(grasp_indices) >= 1:
             suction_points = []
+            finite_px = depth_im.finite_pixels()
             
             for k in grasp_indices:
                 # sample a point uniformly at random
-                ind = grasp_indices[k]
-                center_px = np.array([depth_im[ind,1], depth_im[ind,0]])
+                ind = k
+                center_px = np.array([finite_px[ind,1], finite_px[ind,0]])
                 center = Point(center_px, frame=camera_intr.frame)
                 axis = -normal_cloud_im[center.y, center.x]
                 depth = point_cloud_im[center.y, center.x][2]
